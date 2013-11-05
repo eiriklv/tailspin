@@ -1,0 +1,114 @@
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <title>Tailspin Example</title>
+    
+    <style type='text/css'>
+        #console {
+            width: 400px;
+            height: 200px;
+            font: 12px monospace;
+            border: 1px solid #aaa;
+            padding: 5px;
+            box-sizing: border-box;
+            overflow: auto;
+        }
+        input {
+            width: 400px;
+            display: block;
+            font: 12px monospace;
+        }
+        
+        div.log:before {
+            content: "  ";
+            white-space: pre;
+        }
+        div.input:before {
+            content: "> ";
+        }
+        div.output:before {
+            content: "< ";
+            color: #aaa;
+        }
+        div.error {
+            color: #f00;
+        }
+        
+        body {
+            font: 12px monospace;
+        }
+    </style>
+    
+    <script type="text/javascript" src="src/definitions.js"></script>
+    <script type="text/javascript" src="src/lexer.js"></script>
+    <script type="text/javascript" src="src/parser.js"></script>
+    <script type="text/javascript" src="src/decompiler.js"></script>
+    <script type="text/javascript" src="src/sandbox.js"></script>
+    <script type="text/javascript" src="src/interpreter.js"></script>
+    
+    <script type="text/javascript">
+        var tailspin;
+        
+        function setup() {
+            // Create a new interpreter.
+            tailspin = new Interpreter();
+            
+            // Add a single global 'console' that has a log function.
+            tailspin.global.console = {
+                log:function(msg) {consoleLog(msg, 'log');}
+            };
+            
+            consoleLog("Welcome to Tailspin...");
+        }
+        
+        function consoleLog(msg, logClass) {
+            // Just output the log message to the 'console' textarea.
+            var console = document.getElementById("console");
+            var div = document.createElement("div");
+            div.setAttribute('class', logClass);
+            div.innerHTML = msg;
+            console.appendChild(div);
+            console.scrollTop = console.scrollHeight;
+        }
+        
+        function run(source) {
+            consoleLog(source, "input");
+            
+            // Callback functions for evaluation.
+            function returnFn(result) {
+                consoleLog(result, "output");
+            }
+            function errorFn(result) {
+                consoleLog("ERROR: " + result, 'error');
+            }
+            
+            // Create an evaluation context that describes the how the code is to be executed.
+            var x = tailspin.createExecutionContext();
+            // Asynchronous running is prefered, so that tailspin execution does not block the browser.
+            x.asynchronous = true;
+            
+            // Run the code.
+            tailspin.evaluateInContext(source, "console", 0, x, returnFn, errorFn, null);
+        }
+    </script>
+</head>
+
+<body onload="setup()">
+
+<div id="console" readonly></div>
+<input type="text" onkeydown="if (event.keyCode == 13) {run(this.value); this.value=''; return false;}">
+
+<p>
+Try:
+<ul>
+<li>3+5
+<li>x = 14
+<li>x*x
+<li>function f(n) {return n*n}
+<li>f(x)
+<li>for (i=0;i<=10;i++) console.log(i)
+</ul>
+</p>
+
+</body>
+</html>

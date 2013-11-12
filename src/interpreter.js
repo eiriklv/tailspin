@@ -1045,7 +1045,7 @@ executeFunctions[CALL] = function exCall(n, x, next, ret, cont, brk, thrw, prev)
                     next = function(v, prev) {
                         var newPrev = prevSaveValue(x, "returnedValue", prev);
                         x.returnedValue = v;
-                        x.control.executeControl(n, x, function(prev){ next_o(v, prev); }, newPrev);
+                        x.control(n, x, function(prev){ next_o(v, prev); }, newPrev);
                     };
                 }
                 callFunction(f, t, a, x, next, ret, cont, brk, thrw, prev);
@@ -1234,12 +1234,12 @@ function execute(n, x, next, ret, cont, brk, thrw, prev) {
     x.currentNode = n; // doesn't need reversibility
     
     if (x.control) {
-        // executeControl takes give control an opportunity to control execution
+        // the 'control' function provides an opportunity for controlling execution
         // n -- current AST node
         // x -- current execution-context
         // executeFn -- function(prev) continuation for execution
         // prev -- function() continuation for reverse execution
-        x.control.executeControl(n, x, executeFn, newPrev);
+        x.control(n, x, executeFn, newPrev);
     }
     else {
         executeFn(newPrev);

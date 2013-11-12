@@ -1,0 +1,87 @@
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <title>Tailspin Example</title>
+    
+    <link rel="stylesheet" type="text/css" href="examples.css">
+    
+    <script type="text/javascript" src="../src/definitions.js"></script>
+    <script type="text/javascript" src="../src/lexer.js"></script>
+    <script type="text/javascript" src="../src/parser.js"></script>
+    <script type="text/javascript" src="../src/decompiler.js"></script>
+    <script type="text/javascript" src="../src/sandbox.js"></script>
+    <script type="text/javascript" src="../src/interpreter.js"></script>
+    
+    <script type="text/javascript">
+        var tailspin;
+        
+        function setup() {
+            // Create a new interpreter.
+            tailspin = new Interpreter();
+            
+            // Add a single global 'console' that has a log function.
+            tailspin.global.console = {
+                log:function(msg) {consoleLog(msg, 'log');}
+            };
+        }
+        
+        function consoleLog(msg, logClass) {
+            // Just output the log message to the 'console' textarea.
+            var console = document.getElementById("console");
+            var div = document.createElement("div");
+            div.setAttribute('class', logClass);
+            div.innerHTML = msg;
+            console.appendChild(div);
+            console.scrollTop = console.scrollHeight;
+        }
+        
+        function run() {
+            var source = document.getElementById("source");
+            
+            // Callback functions for evaluation.
+            function returnFn(result) {
+                consoleLog(result, "output");
+            }
+            function errorFn(result) {
+                consoleLog("ERROR: " + result, 'error');
+            }
+            
+            // Create an evaluation context that describes the how the code is to be executed.
+            var x = tailspin.createExecutionContext();
+            
+            // Asynchronous running is prefered, so that tailspin execution does not block the browser.
+            x.asynchronous = true;
+            
+            // A very simple control function that outputs the node line number and value.
+            x.control = function(n, x, next, prev) {
+                var value = "";
+                if (typeof n.value === "string" || typeof n.value === "number") {
+                    value = " '" + n.value + "'";
+                }
+                consoleLog(n.lineno + ": " + Definitions.tokens[n.type] + value);
+                
+                // Continue execution.
+                next(prev);
+            };
+            
+            // Run the code.
+            tailspin.evaluateInContext(source.value, "source", 0, x, returnFn, errorFn, null);
+        }
+    </script>
+</head>
+
+<body onload="setup()">
+
+<button onclick="run();">Run</button><br>
+<textarea id="source">var a = 20;
+var b = 5;
+
+function sqr(x) {
+    return x*x;
+}
+
+a = a * sqr(b);</textarea><br>
+<div id="console" readonly></div>
+
+</body>
+</html>

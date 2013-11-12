@@ -1,0 +1,42 @@
+#console {
+    width: 400px;
+    height: 200px;
+    font: 12px monospace;
+    border: 1px solid #aaa;
+    padding: 5px;
+    box-sizing: border-box;
+    overflow: auto;
+}
+#source {
+    width: 400px;
+    height: 200px;
+    font: 12px monospace;
+    border: 1px solid #aaa;
+    padding: 5px;
+    box-sizing: border-box;
+    overflow: auto;
+}
+input {
+    width: 400px;
+    display: block;
+    font: 12px monospace;
+}
+
+div.log:before {
+    content: "  ";
+    white-space: pre;
+}
+div.input:before {
+    content: "> ";
+}
+div.output:before {
+    content: "< ";
+    color: #aaa;
+}
+div.error {
+    color: #f00;
+}
+
+body {
+    font: 12px monospace;
+}

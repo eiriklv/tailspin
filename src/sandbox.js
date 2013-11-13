@@ -13,35 +13,16 @@
 
 var Sandbox = function (interpreter) {
 var functionInternals = new Definitions.WeakMap();
-var applyNew = Definitions.applyNew;
 
 // We create an iframe to sandbox the base objects.
-var nativeBase = (new Function("return this"))();
+var nativeBase;
 var sandbox;
 
-// When we are in a position to create an iframe, use an iframe to sandbox the interpreter.
-// e.g. not running in a browser, or in a web worker
-if (typeof document === "object") {
-    var iframe = document.createElement("iframe");
-    iframe.style.display = "none";
-    document.body.appendChild(iframe);
-    
-    // Write a script into the <iframe> and steal all of its base objects.
-    /*var sandboxURL = module.uri.split("/");
-    sandboxURL.pop();
-    sandboxURL.push("sandbox.js");
-    sandboxURL = sandboxURL.join("/");*/
-    sandbox = iframe.contentWindow;
-    iframe.contentWindow.document.write(
-      /*'<script type="text/javascript">parent.sandbox = this;</script>\n'+*/
-      //'<script type="text/javascript" src="'+sandboxURL+'"></script>'
-      // For now just load it immediately.
-      '<script type="text/javascript">\n\
-var nativeBase = (new Function("return this"))();\n\
+var sandboxFns = 'nativeBase = (new Function("return this"))();\n\
 \n\
 // Creates a function in the sandbox from the string fnStr.\n\
 // fnStr will reference continuationMarker, fint and x.\n\
-var newFnFunction = function(continuationMarker, fint, x, fnStr) {\n\
+newFnFunction = function(continuationMarker, fint, x, fnStr) {\n\
     var newFn;\n\
     if (fint.node.body.strict) {\n\
         (function() {\n\
@@ -56,22 +37,37 @@ var newFnFunction = function(continuationMarker, fint, x, fnStr) {\n\
 };\n\
 \n\
 // Turns the array a into an arguments object.\n\
-var makeArguments = function(a) {\n\
+makeArguments = function(a) {\n\
     return (function(){return arguments}).apply(undefined, a);\n\
 };\n\
 \n\
 // Apply functions used in order to run functions in the sandbox.\n\
-var applyNew = function(f, a) {\n\
+applyNew = function(f, a) {\n\
     return new (f.bind.apply(f, [,].concat(Array.prototype.slice.call(a))))();\n\
 };\n\
 \n\
-var apply = function(f, t, a) {\n\
+apply = function(f, t, a) {\n\
     return f.apply(t, a);\n\
-};\n\
-</script>'
-    );
-}
-else {
+};';
+
+// When we are in a position to create an iframe, use an iframe to sandbox the interpreter.
+// e.g. not running in a browser, or in a web worker
+// if ( typeof document === "object") {
+//     var iframe = document.createElement("iframe");
+//     iframe.style.display = "none";
+//     document.body.appendChild(iframe);
+//     
+//     iframe.contentWindow.document.write('<script type="text/javascript">'+sandboxFns+'</script>');
+//     
+//     nativeBase = (new Function("return this"))();
+//     sandbox = iframe.contentWindow;
+//     applyNew = Definitions.applyNew;
+// }
+// else
+{
+    eval(sandboxFns);
+    
+    nativeBase = (new Function("return this"))();
     sandbox = nativeBase;
 }
 

@@ -1028,17 +1028,26 @@ executeFunctions[CALL] = function exCall(n, x, next, ret, cont, brk, thrw, prev)
                 thrw(newTypeError(f + " is not callable", c[0].filename, c[0].lineno), prev);
             }
             else {
-                // get the value for this
-                var t = (r instanceof Reference) ? r.base : undefined;
-                if (t instanceof Activation) {
-                    t = undefined;
-                }
+                // Get the value for the 'this' of the function being called.
+                var t;
+                
                 // special case handling of non-direct calling of eval function 15.1.2.1.1
                 if (f === sandbox.sandbox.eval && (!(r instanceof Reference) || r.propertyName !== "eval" || r.base[r] !== sandbox.sandbox.eval)) {
-                    t = undefined;
                     x = x.copy();
-                    x.strict = false;
+                    x.indirectEval = true;
                 }
+                else if (f === sandbox.sandbox.eval) {
+                    // 10.4.2 Entering Eval Code.
+                    // Set the ThisBinding to the same value as the ThisBinding of the calling execution context.
+                    t = x.thisObject;
+                }
+                else {
+                    t = (r instanceof Reference) ? r.base : undefined;
+                    if (t instanceof Activation) {
+                        t = undefined;
+                    }
+                }
+                
                 // handle control on return from calling
                 if (x.control) {
                     var next_o = next;

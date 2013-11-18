@@ -127,23 +127,39 @@ functionInternals.set(sandbox.eval, {
             return a[0];
         }
         
+        var calledFromStrictCode = x.indirectEval? false : x.strict;
+        var ast = Parser.parse(a[0], null, null, calledFromStrictCode);
+        
         // create a new execution context for the eval
-        var x2 = interpreter.createEvalExecutionContext(x.strict);
-        x2.thisObject = t || global;
+        var x2 = interpreter.createEvalExecutionContext(calledFromStrictCode);
+        
+        // Section 10.4.3 Entering Function Code.
+        var isStrict = ast.strict;
+        if (x.indirectEval) {
+            x2.thisObject = global;
+        }
+        else if (isStrict) {
+            x2.thisObject = t;
+        }
+        else if (t === null || t === undefined) {
+            x2.thisObject = global;
+        }
+        else {
+            x2.thisObject = toObject(t);
+        }
+        
         x2.functionInstance = this;
         x2.control = x.control;
         x2.asynchronous = x.asynchronous;
         
-        if (t) {
+        if (!x.indirectEval) {
             x2.scope = x.scope;
         }
         else {
             x2.scope = {object: global, parent: null};
         }
         
-        var ast = Parser.parse(a[0], null, null, x.strict);
-        
-        if (ast.strict) {
+        if (isStrict) {
             // strict mode for eval runs in a new scope
             x2.scope = {object: new Object(), parent: x2.scope};
         }
@@ -662,7 +678,7 @@ Activation.prototype = Object.create(null);
 var FIp = FunctionInternals.prototype = {
     call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
         var x2 = interpreter.createFunctionExecutionContext(this.node.body.strict);
-        x2.thisObject = x2.strict? (t !== global? t : undefined)  : (t || global);
+        x2.thisObject = x2.strict? (t !== global? t : undefined) : (t || global);
         x2.functionInstance = this;
         x2.control = x.control;
         x2.asynchronous = x.asynchronous;

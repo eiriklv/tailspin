@@ -1030,11 +1030,11 @@ executeFunctions[CALL] = function exCall(n, x, next, ret, cont, brk, thrw, prev)
             else {
                 // Get the value for the 'this' of the function being called.
                 var t;
+                var options;
                 
                 // special case handling of non-direct calling of eval function 15.1.2.1.1
                 if (f === sandbox.sandbox.eval && (!(r instanceof Reference) || r.propertyName !== "eval" || r.base[r] !== sandbox.sandbox.eval)) {
-                    x = x.copy();
-                    x.indirectEval = true;
+                    options = {indirectEval:true};
                 }
                 else if (f === sandbox.sandbox.eval) {
                     // 10.4.2 Entering Eval Code.
@@ -1057,7 +1057,7 @@ executeFunctions[CALL] = function exCall(n, x, next, ret, cont, brk, thrw, prev)
                         x.control(n, x, function(prev){ next_o(v, prev); }, newPrev);
                     };
                 }
-                callFunction(f, t, a, x, next, ret, cont, brk, thrw, prev);
+                callFunction(f, t, a, x, next, ret, cont, brk, thrw, prev, options);
             }
         }, ret, cont, brk, thrw, prev);
     }, ret, cont, brk, thrw, prev);

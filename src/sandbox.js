@@ -121,13 +121,14 @@ var globalBase = {
 
 // Create internal functions for eval and Function.
 functionInternals.set(sandbox.eval, {
-    call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
+    call: function(f, t, a, x, next, ret, cont, brk, thrw, prev, options) {
         // if argument is not a string just return it
         if (typeof a[0] !== "string") {
             return a[0];
         }
         
-        var calledFromStrictCode = x.indirectEval? false : x.strict;
+        var indirectEval = options && options.indirectEval;
+        var calledFromStrictCode = indirectEval? false : x.strict;
         var ast = Parser.parse(a[0], null, null, calledFromStrictCode);
         
         // create a new execution context for the eval
@@ -135,7 +136,7 @@ functionInternals.set(sandbox.eval, {
         
         // Section 10.4.3 Entering Function Code.
         var isStrict = ast.strict;
-        if (x.indirectEval) {
+        if (indirectEval) {
             x2.thisObject = global;
         }
         else if (isStrict) {
@@ -152,7 +153,7 @@ functionInternals.set(sandbox.eval, {
         x2.control = x.control;
         x2.asynchronous = x.asynchronous;
         
-        if (!x.indirectEval) {
+        if (!indirectEval) {
             x2.scope = x.scope;
         }
         else {
@@ -221,7 +222,7 @@ functionInternals.set(sandbox.Function.prototype.call, {
             else {
                 var thisArg = (fint.node && fint.node.body.strict)? a[0] : toObject(a[0]);
                 var args = Array.prototype.splice.call(a, 1);
-                fint.call(t, thisArg, args, x, next, ret, cont, brk, thrw, prev);
+                fint.call(t, thisArg, args, x, next, ret, cont, brk, thrw, prev, {callViaFunctionApply:true});
             }
         }
         else {
@@ -249,7 +250,7 @@ functionInternals.set(sandbox.Function.prototype.apply, {
                     thrw(new sandbox.TypeError("Apply arguments must be an object."));
                     return;
                 }
-                fint.call(t, thisArg, args, x, next, ret, cont, brk, thrw, prev);
+                fint.call(t, thisArg, args, x, next, ret, cont, brk, thrw, prev, {callViaFunctionApply:true});
             }
         }
         else {
@@ -634,7 +635,7 @@ function constructFunction(fn, args, x, next, ret, cont, brk, thrw, prev) {
     }
 }
 
-function callFunction(f, t, a, x, next, ret, cont, brk, thrw, prev) {
+function callFunction(f, t, a, x, next, ret, cont, brk, thrw, prev, options) {
     var fint = functionInternals.get(f);
     if (!fint) {
         // calling out to native function
@@ -656,7 +657,7 @@ function callFunction(f, t, a, x, next, ret, cont, brk, thrw, prev) {
         }
     }
     else {
-        fint.call(f, t, a, x, next, ret, cont, brk, thrw, prev);
+        fint.call(f, t, a, x, next, ret, cont, brk, thrw, prev, options);
     }
 }
 
@@ -676,9 +677,20 @@ function Activation(f, a) {
 Activation.prototype = Object.create(null);
 
 var FIp = FunctionInternals.prototype = {
-    call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
+    call: function(f, t, a, x, next, ret, cont, brk, thrw, prev, options) {
         var x2 = interpreter.createFunctionExecutionContext(this.node.body.strict);
-        x2.thisObject = x2.strict? (t !== global? t : undefined) : (t || global);
+        
+        // Get the 'this' object for the function call.
+        if (x2.strict && options && options.callViaFunctionApply) {
+            x2.thisObject = t;
+        }
+        else if (x2.strict) {
+            x2.thisObject = (t !== global? t : undefined);
+        }
+        else {
+            x2.thisObject = (t || global);
+        }
+        
         x2.functionInstance = this;
         x2.control = x.control;
         x2.asynchronous = x.asynchronous;

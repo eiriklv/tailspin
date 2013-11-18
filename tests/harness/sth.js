@@ -177,12 +177,12 @@ function BrowserRunner() {
             }
         }
 
-        idoc.writeln("<script language='javascript1.7' src='../tailspin/definitions.js'></script>");
-        idoc.writeln("<script language='javascript1.7' src='../tailspin/lexer.js'></script>");
-        idoc.writeln("<script language='javascript1.7' src='../tailspin/parser.js'></script>");
-        idoc.writeln("<script language='javascript1.7' src='../tailspin/decompiler.js'></script>");
-        idoc.writeln("<script language='javascript1.7' src='../tailspin/sandbox.js'></script>");
-        idoc.writeln("<script language='javascript1.7' src='../tailspin/interpreter.js'></script>");
+        idoc.writeln("<script language='javascript1.7' src='../src/definitions.js'></script>");
+        idoc.writeln("<script language='javascript1.7' src='../src/lexer.js'></script>");
+        idoc.writeln("<script language='javascript1.7' src='../src/parser.js'></script>");
+        idoc.writeln("<script language='javascript1.7' src='../src/decompiler.js'></script>");
+        idoc.writeln("<script language='javascript1.7' src='../src/sandbox.js'></script>");
+        idoc.writeln("<script language='javascript1.7' src='../src/interpreter.js'></script>");
 
         //Write out all of our helper functions
         //idoc.writeln("<script type='text/javascript' src='harness/sta.js'>" + "</script>");

@@ -52,19 +52,22 @@ apply = function(f, t, a) {\n\
 
 // When we are in a position to create an iframe, use an iframe to sandbox the interpreter.
 // e.g. not running in a browser, or in a web worker
-// if ( typeof document === "object") {
-//     var iframe = document.createElement("iframe");
-//     iframe.style.display = "none";
-//     document.body.appendChild(iframe);
-//     
-//     iframe.contentWindow.document.write('<script type="text/javascript">'+sandboxFns+'</script>');
-//     
-//     nativeBase = (new Function("return this"))();
-//     sandbox = iframe.contentWindow;
-//     applyNew = Definitions.applyNew;
-// }
-// else
-{
+if (typeof document === "object") {
+    var iframe = document.createElement("iframe");
+    iframe.style.display = "none";
+    document.body.appendChild(iframe);
+    
+    iframe.contentWindow.document.write('<script type="text/javascript">'+sandboxFns+'</script>');
+    
+    nativeBase = (new Function("return this"))();
+    sandbox = iframe.contentWindow;
+    applyNew = Definitions.applyNew;
+}
+else {
+    // Having the sandbox the same as the Tailspin's host is less ideal
+    // because there is more chance of polluting the host interpreter.
+    // But if we are unable to create an iframe to contain sandboxed versions of
+    // Object, Array etc. this will have to do.
     eval(sandboxFns);
     
     nativeBase = (new Function("return this"))();

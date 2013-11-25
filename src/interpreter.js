@@ -272,9 +272,11 @@ executeFunctions[SCRIPT] = function exScript(n, x, next, ret, cont, brk, thrw, p
         var f = newFunction(funDecls[i], x);
         // ECMA-262 says function bindings not created by `eval' are non-deleteable.
         //   (x.type !== EVAL_CODE)
-        // But for the sake of reversibility we define all fns as deletable.
+        // But for reversible code we define all fns as deletable.
         // All function declarations start as the function.
-        t[name] = f;
+        var deletable = prev || x.type === EVAL_CODE;
+        Object.defineProperty(t, name, {value:f, configurable:deletable, writable:true});
+        
         prev = delPrev(t, name, prev);
     }
     
@@ -289,9 +291,11 @@ executeFunctions[SCRIPT] = function exScript(n, x, next, ret, cont, brk, thrw, p
         }
         if (v.readOnly || !hasDirectProperty(t, name)) {
             // ECMA-262 says variable bindings created by `eval' are deleteable.
-            // But for the sake of reversibility we define all vars as deletable.
+            // But for reversible code we define all vars as deletable.
             // All var declarations start as undefined.
-            t[name] = undefined;
+            var deletable = prev || x.type === EVAL_CODE;
+            Object.defineProperty(t, name, {value:undefined, configurable:deletable, writable:true});
+            
             prev = delPrev(t, name, prev);
         }
     }

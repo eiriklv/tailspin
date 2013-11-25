@@ -263,6 +263,8 @@ functionInternals.set(sandbox.Function.prototype.apply, {
 
 // Array functions.
 // Adding reversible versions of mutating methods.
+// Use sandbox.apply(fn, this, args...) instead of fn.apply(this, args...) so that
+// function call happens in sandbox frame and returns array from the sandbox for Safari.
 var popFn = sandbox.Array.prototype.pop;
 var pushFn = sandbox.Array.prototype.push;
 var shiftFn = sandbox.Array.prototype.shift;
@@ -274,10 +276,10 @@ functionInternals.set(pushFn, {
     call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
         var originalLength = t.length;
         var newPrev = function() {
-            spliceFn.apply(t, [originalLength, a.length])
+            sandbox.apply(spliceFn, t, [originalLength, a.length])
             prev();
         }
-        next(pushFn.apply(t, a), newPrev);
+        next(sandbox.apply(pushFn, t, a), newPrev);
     },
     construct: function(f, a, x, next, ret, cont, brk, thrw, prev) {
     }
@@ -286,9 +288,9 @@ functionInternals.set(pushFn, {
 functionInternals.set(popFn, {
     call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
         if (t.length > 0) {
-            var popped = popFn.apply(t, a);
+            var popped = sandbox.apply(popFn, t, a);
             var newPrev = function() {
-                pushFn.apply(t, [popped])
+                sandbox.apply(pushFn, t, [popped])
                 prev();
             }
             next(popped, newPrev);
@@ -304,9 +306,9 @@ functionInternals.set(popFn, {
 functionInternals.set(shiftFn, {
     call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
         if (t.length > 0) {
-            var shifted = shiftFn.apply(t, a);
+            var shifted = sandbox.apply(shiftFn, t, a);
             var newPrev = function() {
-                unshiftFn.apply(t, [shifted])
+                sandbox.apply(unshiftFn, t, [shifted])
                 prev();
             }
             next(shifted, newPrev);
@@ -322,10 +324,10 @@ functionInternals.set(shiftFn, {
 functionInternals.set(unshiftFn, {
     call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
         var newPrev = function() {
-            spliceFn.apply(t, [0, a.length]);
+            sandbox.apply(spliceFn, t, [0, a.length]);
             prev();
         }
-        next(unshiftFn.apply(t, a), newPrev);
+        next(sandbox.apply(unshiftFn, t, a), newPrev);
     },
     construct: function(f, a, x, next, ret, cont, brk, thrw, prev) {
     }
@@ -342,7 +344,7 @@ functionInternals.set(spliceFn, {
             }
             prev();
         }
-        next(spliceFn.apply(t, a), newPrev);
+        next(sandbox.apply(spliceFn, t, a), newPrev);
     },
     construct: function(f, a, x, next, ret, cont, brk, thrw, prev) {
     }
@@ -351,10 +353,10 @@ functionInternals.set(spliceFn, {
 functionInternals.set(reverseFn, {
     call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
         var newPrev = function() {
-            reverseFn.apply(t);
+            sandbox.apply(reverseFn, t);
             prev();
         }
-        next(reverseFn.apply(t), newPrev);
+        next(sandbox.apply(reverseFn, t), newPrev);
     },
     construct: function(f, a, x, next, ret, cont, brk, thrw, prev) {
     }
@@ -371,7 +373,7 @@ functionInternals.set(sortFn, {
             }
             prev();
         }
-        next(sortFn.apply(t, a), newPrev);
+        next(sandbox.apply(sortFn, t, a), newPrev);
     },
     construct: function(f, a, x, next, ret, cont, brk, thrw, prev) {
     }

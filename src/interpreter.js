@@ -36,24 +36,27 @@ var GLOBAL_CODE = 0, EVAL_CODE = 1, FUNCTION_CODE = 2;
 
 // Create a new sandbox.
 var exports = {};
-var sandbox = new Sandbox(exports);
-var global = sandbox.global;
-var functionInternals = sandbox.functionInternals;
-var sandboxError = sandbox.sandboxError;
-var sandboxBaseValue = sandbox.sandboxBaseValue;
-var newTypeError = sandbox.newTypeError;
-var newReferenceError = sandbox.newReferenceError;
+var sandboxExports = new Sandbox(exports);
+var sandbox = sandboxExports.sandbox;
+var global = sandboxExports.global;
+var functionInternals = sandboxExports.functionInternals;
+var sandboxError = sandboxExports.sandboxError;
+var sandboxBaseValue = sandboxExports.sandboxBaseValue;
+var sandboxArray = sandboxExports.sandboxArray;
+var newTypeError = sandboxExports.newTypeError;
+var newReferenceError = sandboxExports.newReferenceError;
+var ExecutionContext = sandboxExports.ExecutionContext;
 
 // Grab useful functions.
-var isPrimitive = sandbox.isPrimitive;
-var isObject = sandbox.isObject;
-var toObjectCheck = sandbox.toObjectCheck;
-var toObject = sandbox.toObject;
-var Activation = sandbox.Activation;
-var newFunction = sandbox.newFunction;
-var hasInstance = sandbox.hasInstance;
-var constructFunction = sandbox.constructFunction;
-var callFunction = sandbox.callFunction;
+var isPrimitive = sandboxExports.isPrimitive;
+var isObject = sandboxExports.isObject;
+var toObjectCheck = sandboxExports.toObjectCheck;
+var toObject = sandboxExports.toObject;
+var Activation = sandboxExports.Activation;
+var newFunction = sandboxExports.newFunction;
+var hasInstance = sandboxExports.hasInstance;
+var constructFunction = sandboxExports.constructFunction;
+var callFunction = sandboxExports.callFunction;
 
 
 // Helper to avoid Object.prototype.hasOwnProperty polluting scope objects.
@@ -237,7 +240,7 @@ executeFunctions[FUNCTION] = function exFunction(n, x, next, ret, cont, brk, thr
             }
         }
         else {
-            var t = new sandbox.sandbox.Object();
+            var t = new sandbox.Object();
             x.scope = {object: t, parent: x.scope};
             try {
                 newFn = newFunction(n, x);
@@ -1037,10 +1040,10 @@ executeFunctions[CALL] = function exCall(n, x, next, ret, cont, brk, thrw, prev)
                 var options;
                 
                 // special case handling of non-direct calling of eval function 15.1.2.1.1
-                if (f === sandbox.sandbox.eval && (!(r instanceof Reference) || r.propertyName !== "eval" || r.base[r] !== sandbox.sandbox.eval)) {
+                if (f === sandbox.eval && (!(r instanceof Reference) || r.propertyName !== "eval" || r.base[r] !== sandbox.eval)) {
                     options = {indirectEval:true};
                 }
-                else if (f === sandbox.sandbox.eval) {
+                else if (f === sandbox.eval) {
                     // 10.4.2 Entering Eval Code.
                     // Set the ThisBinding to the same value as the ThisBinding of the calling execution context.
                     t = x.thisObject;
@@ -1082,7 +1085,7 @@ executeFunctions[NEW] = function exNew(n, x, next, ret, cont, brk, thrw, prev) {
         };
         
         if (n.type === NEW) {// fixme: what is this???
-            var a = new sandbox.sandbox.Object();
+            var a = new sandbox.Object();
             Definitions.defineProperty(a, "length", 0, false, false, true);
             constructFn(a, prev);
         } else {
@@ -1095,7 +1098,7 @@ executeFunctions[NEW] = function exNew(n, x, next, ret, cont, brk, thrw, prev) {
 executeFunctions[NEW_WITH_ARGS] = executeFunctions[NEW];
 
 executeFunctions[ARRAY_INIT] = function exArrayInit(n, x, next, ret, cont, brk, thrw, prev) {
-    var newArray = new sandbox.sandbox.Array();
+    var newArray = [];
     
     // for(i=0; i<c.length; i++)
     var forLoop = function(i, prev) {
@@ -1116,16 +1119,19 @@ executeFunctions[ARRAY_INIT] = function exArrayInit(n, x, next, ret, cont, brk, 
             }
         }
         else {
+            // Create a sandboxed array after collecting all values so that getters or setters in
+            // Array.prototype don't affect array creation.
+            var sandboxedArray = sandboxArray(newArray);
             // Set the length of newArray, and continue.
-            newArray.length = n.children.length;
-            next(newArray, prev);
+            sandboxedArray.length = n.children.length;
+            next(sandboxedArray, prev);
         }
     };
     forLoop(0, prev);
 };
 
 executeFunctions[OBJECT_INIT] = function exObjectInit(n, x, next, ret, cont, brk, thrw, prev) {
-    var newObject = new sandbox.sandbox.Object();
+    var newObject = new sandbox.Object();
     var c = n.children;
     
     // Initialise the objects contents looping over the children.
@@ -1293,23 +1299,23 @@ function evaluateInContext(s, f, l, x, ret, thrw, prev) {
 }
 
 function createExecutionContext() {
-    return new sandbox.ExecutionContext(GLOBAL_CODE);
+    return new ExecutionContext(GLOBAL_CODE);
 }
 
 function createEvalExecutionContext(strict) {
-    return new sandbox.ExecutionContext(EVAL_CODE, strict);
+    return new ExecutionContext(EVAL_CODE, strict);
 }
 
 function createFunctionExecutionContext(strict) {
-    return new sandbox.ExecutionContext(FUNCTION_CODE, strict);
+    return new ExecutionContext(FUNCTION_CODE, strict);
 }
 
 // resetEnvironment wipes any properties added externally to global,
 // but properties added to globalBase will persist.
 exports.global = global;
-exports.globalBase = sandbox.globalBase;
-exports.translate = sandbox.translate;
-exports.resetEnvironment = sandbox.resetEnvironment;
+exports.globalBase = sandboxExports.globalBase;
+exports.translate = sandboxExports.translate;
+exports.resetEnvironment = sandboxExports.resetEnvironment;
 exports.evaluate = evaluate;
 exports.evaluateInContext = evaluateInContext;
 exports.execute = execute;

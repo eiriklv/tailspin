@@ -437,6 +437,9 @@ function sandboxBaseValue(v) {
     }
     return v;
 }
+function sandboxArray(v) {
+    return sandbox.apply(sandbox.Array.prototype.slice, v);
+}
 function newTypeError(msg, filename, lineNumber) {
     var error = new sandbox.TypeError(msg);
     error.sourceLine = lineNumber;
@@ -821,6 +824,7 @@ exports.resetEnvironment = resetEnvironment;
 exports.sandbox = sandbox;
 exports.sandboxError = sandboxError;
 exports.sandboxBaseValue = sandboxBaseValue;
+exports.sandboxArray = sandboxArray;
 exports.newTypeError = newTypeError;
 exports.newReferenceError = newReferenceError;
 exports.isPrimitive = isPrimitive;

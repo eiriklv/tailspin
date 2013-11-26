@@ -746,7 +746,7 @@ var FIp = FunctionInternals.prototype = {
         var newObject = sandbox.applyNew(fn, [continuationMarker]);
         
         this.call(fn, newObject, a, x, function(r, prev) {
-            if (typeof r === "object") {
+            if (typeof r === "object" || typeof r === "function") {
                 // If the function returned an object use that.
                 next(r, prev);
             } else {

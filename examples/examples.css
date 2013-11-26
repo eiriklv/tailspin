@@ -1,20 +1,6 @@
-#console {
-    width: 400px;
-    height: 200px;
-    font: 12px monospace;
-    border: 1px solid #aaa;
-    padding: 5px;
-    box-sizing: border-box;
-    overflow: auto;
-}
-#source {
-    width: 400px;
-    height: 200px;
-    font: 12px monospace;
-    border: 1px solid #aaa;
-    padding: 5px;
-    box-sizing: border-box;
-    overflow: auto;
+.CodeMirror {
+    border: 1px solid #999;
+    margin-top: 5px;
 }
 input {
     width: 400px;
@@ -22,19 +8,22 @@ input {
     font: 12px monospace;
 }
 
-div.log:before {
+pre > .log:first-child:before {
     content: "  ";
     white-space: pre;
 }
-div.input:before {
+pre > .input:first-child:before {
     content: "> ";
 }
-div.output:before {
+pre > .input {
+    color: #2C57EA !important;
+}
+pre > .output:first-child:before {
     content: "< ";
     color: #aaa;
 }
-div.error {
-    color: #f00;
+pre > .error {
+    color: #f00 !important;
 }
 
 body {

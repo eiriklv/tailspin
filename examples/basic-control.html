@@ -12,8 +12,12 @@
     <script type="text/javascript" src="../src/sandbox.js"></script>
     <script type="text/javascript" src="../src/interpreter.js"></script>
     
+    <script src="lib/codemirror-compressed.js"></script>
+    <link rel="stylesheet" href="lib/codemirror.css">
+    
     <script type="text/javascript">
         var tailspin;
+        var mySource, myConsole;
         
         function setup() {
             // Create a new interpreter.
@@ -23,21 +27,32 @@
             tailspin.global.console = {
                 log:function(msg) {consoleLog(msg, 'log');}
             };
+            
+            mySource = CodeMirror.fromTextArea(document.getElementById("source"),
+                {lineNumbers:true, mode:"javascript"});
+            
+            myConsole = CodeMirror.fromTextArea(document.getElementById("console"),
+                {readOnly:true, mode:"text"});
+            
+            // Save the code on changes.
+            mySource.on('change', function(cMirror) {
+                localStorage["source"] = cMirror.getValue();
+            });
+            
+            // Load saved code.
+            var savedScript = localStorage["source"];
+            if (typeof savedScript === "string") {
+                mySource.setValue(savedScript);
+            }
         }
         
         function consoleLog(msg, logClass) {
-            // Just output the log message to the 'console' textarea.
-            var console = document.getElementById("console");
-            var div = document.createElement("div");
-            div.setAttribute('class', logClass);
-            div.innerHTML = msg;
-            console.appendChild(div);
-            console.scrollTop = console.scrollHeight;
+            var from = myConsole.posFromIndex(myConsole.getValue().length);
+            myConsole.replaceRange(msg+"\n", from);
+            myConsole.markText(from, CodeMirror.Pos(myConsole.lastLine()), {className:logClass});
         }
         
         function run() {
-            var source = document.getElementById("source");
-            
             // Callback functions for evaluation.
             function returnFn(result) {
                 consoleLog(result, "output");
@@ -65,14 +80,16 @@
             };
             
             // Run the code.
-            tailspin.evaluateInContext(source.value, "source", 0, x, returnFn, errorFn, null);
+            var source = mySource.getValue();
+            tailspin.evaluateInContext(source, "source", 0, x, returnFn, errorFn, null);
         }
     </script>
 </head>
 
 <body onload="setup()">
 
-<button onclick="run();">Run</button><br>
+<button onclick="run();">Run</button>
+
 <textarea id="source">var a = 20;
 var b = 5;
 
@@ -80,8 +97,8 @@ function sqr(x) {
     return x*x;
 }
 
-a = a * sqr(b);</textarea><br>
-<div id="console" readonly></div>
+a = a * sqr(b);</textarea>
+<textarea id="console"></textarea>
 
 </body>
 </html>

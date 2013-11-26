@@ -12,34 +12,60 @@
     <script type="text/javascript" src="../src/sandbox.js"></script>
     <script type="text/javascript" src="../src/interpreter.js"></script>
     
+    <script src="lib/codemirror-compressed.js"></script>
+    <link rel="stylesheet" href="lib/codemirror.css">
+    
     <script type="text/javascript">
         var tailspin;
+        var myConsole;
+        var myConsole_lastLogRange;
         
         function setup() {
             // Create a new interpreter.
             tailspin = new Interpreter();
             
+            myConsole = CodeMirror.fromTextArea(document.getElementById("console"), {
+                mode: "text",
+                autofocus: true,
+                extraKeys: {
+                    Enter: function(cm) {}
+                  }
+              });
+            
+            // Run code on enter key.
+            myConsole.on('keyHandled', function(cMirror, name) {
+                if (name === "Enter") {
+                    var to = myConsole.posFromIndex(myConsole.getValue().length);
+                    var from = myConsole_lastLogRange;
+                    var source = cMirror.getRange(from, to);
+                    myConsole.setSelection(to);
+                    myConsole.replaceRange("\n", to);
+                    myConsole.markText(from, CodeMirror.Pos(myConsole.lastLine()), {
+                        className: "input",
+                        readOnly: true
+                      });
+                    run(source);
+                }
+            });
+            
             // Add a single global 'console' that has a log function.
             tailspin.global.console = {
                 log:function(msg) {consoleLog(msg, 'log');}
             };
-            
             consoleLog("Welcome to Tailspin...");
         }
         
         function consoleLog(msg, logClass) {
-            // Just output the log message to the 'console' textarea.
-            var console = document.getElementById("console");
-            var div = document.createElement("div");
-            div.setAttribute('class', logClass);
-            div.innerHTML = msg;
-            console.appendChild(div);
-            console.scrollTop = console.scrollHeight;
+            var from = myConsole.posFromIndex(myConsole.getValue().length);
+            myConsole.replaceRange(msg+"\n", from);
+            myConsole.markText(from, CodeMirror.Pos(myConsole.lastLine()), {
+                className: logClass,
+                readOnly: true
+              });
+            myConsole_lastLogRange = myConsole.posFromIndex(myConsole.getValue().length);
         }
         
         function run(source) {
-            consoleLog(source, "input");
-            
             // Callback functions for evaluation.
             function returnFn(result) {
                 consoleLog(result, "output");
@@ -62,8 +88,7 @@
 
 <body onload="setup()">
 
-<div id="console" readonly></div>
-<input type="text" onkeydown="if (event.keyCode == 13) {run(this.value); this.value=''; return false;}">
+<textarea id="console"></textarea>
 
 <p>
 Try:

@@ -669,10 +669,12 @@ function callFunction(f, t, a, x, next, ret, cont, brk, thrw, prev, options) {
 var continuationMarker = {};
 
 function Activation(f, a) {
-    for (var i = 0, j = f.params.length; i < j; i++) {
-        Definitions.defineProperty(this, f.params[i], a[i], true);
+    if (f) {
+        for (var i = 0, j = f.params.length; i < j; i++) {
+            Definitions.defineProperty(this, f.params[i], a[i], true);
+        }
+        Definitions.defineProperty(this, "arguments", a, true);
     }
-    Definitions.defineProperty(this, "arguments", a, true);
 }
 
 // Null Activation.prototype's proto slot so that Object.prototype.* does not

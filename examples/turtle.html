@@ -1,0 +1,153 @@
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <title>Tailspin Example - Turtle</title>
+    
+    <link rel="stylesheet" type="text/css" href="examples.css">
+    
+    <script type="text/javascript" src="../src/definitions.js"></script>
+    <script type="text/javascript" src="../src/lexer.js"></script>
+    <script type="text/javascript" src="../src/parser.js"></script>
+    <script type="text/javascript" src="../src/decompiler.js"></script>
+    <script type="text/javascript" src="../src/sandbox.js"></script>
+    <script type="text/javascript" src="../src/interpreter.js"></script>
+    
+    <script src="lib/codemirror-compressed.js"></script>
+    <link rel="stylesheet" href="lib/codemirror.css">
+    
+    <script type="text/javascript">
+        var tailspin;
+        var mySource, myConsole;
+        
+        window.onload = function() {
+            // Create a new interpreter.
+            tailspin = new Interpreter();
+            
+            // Add a turtle controls to global.
+            tailspin.global.forward = forward;
+            tailspin.global.backward = backward;
+            tailspin.global.left = left;
+            tailspin.global.right = right;
+            tailspin.global.reset = reset;
+            tailspin.global.up = up;
+            tailspin.global.down = down;
+            
+            mySource = CodeMirror.fromTextArea(document.getElementById("source"),
+                {lineNumbers:true, mode:"javascript"});
+            
+            // Save the code on changes.
+            mySource.on('change', function(cMirror) {
+                localStorage["turtle-source"] = cMirror.getValue();
+            });
+            
+            // Load saved code.
+            var savedScript = localStorage["turtle-source"];
+            if (typeof savedScript === "string") {
+                mySource.setValue(savedScript);
+            }
+            
+            reset();
+        }
+        
+        function run() {
+            // Disable the run button so that the user cannot attempt to run two simultaneous
+            // copies of the code. Essentially running the JS multi-threaded.
+            var runButton = document.getElementById("run-button");
+            runButton.disabled = true;
+            
+            // Callback functions for evaluation.
+            function returnFn(result) {
+                console.log(result);
+                runButton.disabled = false;
+            }
+            function errorFn(result) {
+                console.error(result);
+                runButton.disabled = false;
+            }
+            
+            // Create an evaluation context that describes the how the code is to be executed.
+            var x = tailspin.createExecutionContext();
+            
+            // Asynchronous running is prefered, so that tailspin execution does not block the browser.
+            x.asynchronous = true;
+            
+            // Run the code.
+            var source = mySource.getValue();
+            tailspin.evaluateInContext(source, "source", 0, x, returnFn, errorFn, null);
+        }
+        
+        
+        // Very simple turtle drawing code, non-OO.
+        var turtle = {x:150.5, y:150.5, angle:90, penDown:true};
+        
+        function forward(distance) {
+            var canvas = document.getElementById("canvas").getContext("2d");
+            canvas.strokeStyle = "#000";
+            canvas.lineWidth = 1;
+            
+            if (turtle.penDown) {
+                canvas.beginPath();
+                canvas.moveTo(turtle.x, turtle.y);
+            }
+            turtle.x += Math.cos(turtle.angle*Math.PI/180)*distance;
+            turtle.y -= Math.sin(turtle.angle*Math.PI/180)*distance;
+            if (turtle.penDown) {
+                canvas.lineTo(turtle.x, turtle.y);
+                canvas.stroke();
+            }
+        }
+        function backward(distance) {
+            forward(-distance);
+        }
+        function left(angle) {
+            turtle.angle += angle;
+        }
+        function right(angle) {
+            left(-angle);
+        }
+        function up() {
+            turtle.penDown = false;
+        }
+        function down() {
+            turtle.penDown = true;
+        }
+        function reset() {
+            var canvas = document.getElementById("canvas").getContext("2d");
+            canvas.clearRect(0, 0, 300, 300);
+            turtle = {x:150.5, y:150.5, angle:90, penDown:true};
+        }
+        
+        
+    </script>
+</head>
+
+<body>
+
+<button onclick="run();" id="run-button">Run</button>
+
+<div style="position:relative">
+<div style="padding-right:310px">
+<textarea id="source">forward(20);
+left(10);
+forward(20);</textarea>
+</div>
+<canvas id="canvas" style="position:absolute;top:0px;right:0px;" width=300 height=300></canvas>
+<div>
+
+<p>
+Animation is due to Tailspin interpreter running asynchronously. Turtle functions available in interpreter:
+<pre>
+<ul style="padding-top:0px;">
+<li>forward(distance)
+<li>backward(distance)
+<li>left(angle)
+<li>right(angle)
+<li>up()
+<li>down()
+<li>reset()
+</ul>
+</pre>
+</p>
+
+</body>
+</html>

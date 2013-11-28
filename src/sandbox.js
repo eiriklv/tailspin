@@ -431,12 +431,18 @@ function sandboxError(e, fileName, lineNumber) {
     return e;
 }
 function sandboxBaseValue(v) {
+    // RegEx.
+    if (v.constructor === RegExp) {
+        return new sandbox.RegExp(v.source, (v.ignoreCase ? "i" : "") + (v.global ? "g" : "") + (v.multiline ? "m" : ""));
+    }
+    // Number or String.
     var i = nativeToSandboxClasses.indexOf(v.constructor);
     if (i>=0 && i%2===0) {
         return nativeToSandboxClasses[i+1](v);
     }
     return v;
 }
+
 function sandboxArray(v) {
     return sandbox.apply(sandbox.Array.prototype.slice, v);
 }

@@ -38,11 +38,11 @@
             
             // Save the code on changes.
             mySource.on('change', function(cMirror) {
-                localStorage["source"] = cMirror.getValue();
+                localStorage["debugger-source"] = cMirror.getValue();
             });
             
             // Load saved code.
-            var savedScript = localStorage["source"];
+            var savedScript = localStorage["debugger-source"];
             if (typeof savedScript === "string") {
                 mySource.setValue(savedScript);
             }

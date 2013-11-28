@@ -2,11 +2,6 @@
     border: 1px solid #999;
     margin-top: 5px;
 }
-input {
-    width: 400px;
-    display: block;
-    font: 12px monospace;
-}
 
 pre > .log:first-child:before {
     content: "  ";
@@ -26,6 +21,8 @@ pre > .error {
     color: #f00 !important;
 }
 
-body {
-    font: 12px monospace;
+canvas {
+    border: 1px solid #999;
+    width: 300px;
+    height: 300px;
 }

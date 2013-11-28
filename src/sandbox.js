@@ -431,12 +431,18 @@ function sandboxError(e, fileName, lineNumber) {
     return e;
 }
 function sandboxBaseValue(v) {
+    // RegEx.
+    if (v.constructor === RegExp) {
+        return new sandbox.RegExp(v.source, (v.ignoreCase ? "i" : "") + (v.global ? "g" : "") + (v.multiline ? "m" : ""));
+    }
+    // Number or String.
     var i = nativeToSandboxClasses.indexOf(v.constructor);
     if (i>=0 && i%2===0) {
         return nativeToSandboxClasses[i+1](v);
     }
     return v;
 }
+
 function sandboxArray(v) {
     return sandbox.apply(sandbox.Array.prototype.slice, v);
 }
@@ -669,10 +675,12 @@ function callFunction(f, t, a, x, next, ret, cont, brk, thrw, prev, options) {
 var continuationMarker = {};
 
 function Activation(f, a) {
-    for (var i = 0, j = f.params.length; i < j; i++) {
-        Definitions.defineProperty(this, f.params[i], a[i], true);
+    if (f) {
+        for (var i = 0, j = f.params.length; i < j; i++) {
+            Definitions.defineProperty(this, f.params[i], a[i], true);
+        }
+        Definitions.defineProperty(this, "arguments", a, true);
     }
-    Definitions.defineProperty(this, "arguments", a, true);
 }
 
 // Null Activation.prototype's proto slot so that Object.prototype.* does not

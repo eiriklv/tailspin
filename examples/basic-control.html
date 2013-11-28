@@ -55,7 +55,7 @@
         function run() {
             // Callback functions for evaluation.
             function returnFn(result) {
-                consoleLog(result, "output");
+                consoleLog(JSON.stringify(result), "output");
             }
             function errorFn(result) {
                 consoleLog("ERROR: " + result, 'error');

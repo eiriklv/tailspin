@@ -651,7 +651,7 @@ executeFunctions[TRY] = function exTry(n, x, next, ret, cont, brk, thrw, prev) {
         // Assume 1 catch clause without guard for now.
         if (n.catchClauses.length === 1) {
             var t = n.catchClauses[0];
-            x.scope = {object: {}, parent: x.scope};
+            x.scope = {object: new Activation(), parent: x.scope};
             Definitions.defineProperty(x.scope.object, t.varName, e, true);
             
             execute(t.block, x, function(ignored, prev) {

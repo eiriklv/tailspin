@@ -368,15 +368,31 @@ Tokenizer.prototype = {
 
         var hasEscapes = false;
         var delim = ch;
-        if (input.length <= this.cursor)
+        
+        if (this.cursor >= input.length) {
             throw this.newSyntaxError("Unterminated string literal");
+        }
+            
         while ((ch = input[this.cursor++]) !== delim) {
-            if (this.cursor == input.length)
-                throw this.newSyntaxError("Unterminated string literal");
+            if (Definitions.newlines[ch]) {
+                throw this.newSyntaxError("Unterminated string literal, illegal unescaped new-line.");
+            }
+            
             if (ch === '\\') {
                 hasEscapes = true;
-                if (++this.cursor == input.length)
-                    throw this.newSyntaxError("Unterminated string literal");
+                
+                // Treat \r\n as a single character for escaping new lines.
+                if (this.cursor+1 < input.length) {
+                    if (input[this.cursor] === '\r' && input[this.cursor+1] === '\n') {
+                        this.cursor++;
+                    }
+                }
+                
+                this.cursor++;
+            }
+            
+            if (this.cursor >= input.length) {
+                throw this.newSyntaxError("Unterminated string literal");
             }
         }
 

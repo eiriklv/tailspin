@@ -127,9 +127,26 @@
 
 <div style="position:relative">
 <div style="padding-right:310px">
-<textarea id="source">forward(20);
-left(10);
-forward(20);</textarea>
+<textarea id="source">function tree(size, aa, ab, sa, sb) {
+  if (size >= 1) {
+    forward(size);
+    
+    left(aa);
+    tree(size*sa, aa, ab, sa, sb);
+    
+    right(aa-ab);
+    tree(size*sb, aa, ab, sa, sb);
+    
+    up();
+    left(-ab);
+    backward(size);
+    down();
+  }
+}
+
+reset();
+up(); backward(100); down();
+tree(80, 40, -65, 0.6, 0.7);</textarea>
 </div>
 <canvas id="canvas" style="position:absolute;top:0px;right:0px;" width=300 height=300></canvas>
 <div>

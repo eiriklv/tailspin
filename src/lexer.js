@@ -487,10 +487,6 @@ Tokenizer.prototype = {
 
         if (keywordIsName)
             return;
-        
-        /*if (Definitions.reservedKeywords.indexOf(id) !== -1) {
-            throw this.newSyntaxError("Use of reserved word '"+id+"'");
-        }*/
 
         var kw;
 
@@ -511,8 +507,9 @@ Tokenizer.prototype = {
         }
 
         kw = Definitions.keywords[id];
-        if (kw)
+        if (kw) {
             token.type = kw;
+        }
     },
 
     /*

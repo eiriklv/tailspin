@@ -102,6 +102,9 @@ var tokens = [
     "this", "throw", "true", "try", "typeof",
     "var", "void",
     "while", "with",
+    
+    // Reserved keywords.
+    "class", "extends", "enum", "super"
 ];
 
 var strictKeywords = {
@@ -132,10 +135,6 @@ var statementStartTokens = [
     "var",
     "yield",
     "while", "with",
-];
-
-var reservedKeywords = [
-    "class", "extends", "enum", "super"
 ];
 
 // Whitespace characters (see ECMA-262 7.2)
@@ -542,7 +541,6 @@ exports.whitespace = whitespace;
 exports.newlines = newlines;
 exports.opTypeNames = opTypeNames;
 exports.keywords = keywords;
-exports.reservedKeywords = reservedKeywords;
 exports.isKeyword = isKeyword;
 exports.mozillaKeywords = mozillaKeywords;
 exports.strictKeywords = strictKeywords;

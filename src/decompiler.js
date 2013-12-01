@@ -45,7 +45,7 @@
  */
 
 var Decompiler = (function () {
-const tokens = Definitions.tokens;
+var tokens = Definitions.tokens;
 
 // Set constants in the local scope.
 eval(Definitions.consts);
@@ -211,9 +211,9 @@ function pp(n, d, inLetHead) {
         break;
 
       case FOR:
-        p += "for (" + pp(n.setup, d) + "; "
-            + pp(n.condition, d) + "; "
-            + pp(n.update, d) + ") ";
+        p += "for (" + pp(n.setup, d) + "; " +
+            pp(n.condition, d) + "; " +
+            pp(n.update, d) + ") ";
 
         var pb = pp(n.body, d);
         if (!isBlock(n.body))
@@ -343,23 +343,23 @@ function pp(n, d, inLetHead) {
       case ASSIGN:
         var nc = n.children;
         var t = n.assignOp;
-        p += pp(nc[0], d) + " " + (t ? tokens[t] : "") + "="
-            + " " + pp(nc[1], d);
+        p += pp(nc[0], d) + " " + (t ? tokens[t] : "") + "=" +
+            " " + pp(nc[1], d);
         break;
 
       case HOOK:
         var nc = n.children;
-        p += "(" + pp(nc[0], d) + " ? "
-            + pp(nc[1], d) + " : "
-            + pp(nc[2], d);
+        p += "(" + pp(nc[0], d) + " ? " +
+            pp(nc[1], d) + " : " +
+            pp(nc[2], d);
         p += ")";
         break;
 
       case OR:
       case AND:
         var nc = n.children;
-        p += "(" + pp(nc[0], d) + " " + tokens[n.type] + " "
-            + pp(nc[1], d);
+        p += "(" + pp(nc[0], d) + " " + tokens[n.type] + " " +
+            pp(nc[1], d);
         p += ")";
         break;
 
@@ -385,8 +385,8 @@ function pp(n, d, inLetHead) {
       case DIV:
       case MOD:
         var nc = n.children;
-        p += "(" + pp(nc[0], d) + " " + tokens[n.type] + " "
-            + pp(nc[1], d) + ")";
+        p += "(" + pp(nc[0], d) + " " + tokens[n.type] + " " +
+            pp(nc[1], d) + ")";
         break;
 
       case DELETE:
@@ -446,7 +446,7 @@ function pp(n, d, inLetHead) {
         for (var i = 0, j = nc.length; i < j; i++) {
             if(nc[i])
                 p += pp(nc[i], d);
-            p += ","
+            p += ",";
         }
         p += "]";
         break;

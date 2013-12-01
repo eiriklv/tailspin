@@ -258,7 +258,7 @@ for (i = 0, j = statementStartTokens.length; i < j; i++)
 var assignOps = ['|', '^', '&', '<<', '>>', '>>>', '+', '-', '*', '/', '%'];
 
 for (i = 0, j = assignOps.length; i < j; i++) {
-    t = assignOps[i];
+    var t = assignOps[i];
     assignOps[t] = tokens[t];
 }
 
@@ -359,151 +359,6 @@ function getOwnProperties(obj) {
     return map;
 }
 
-function blacklistHandler(target, blacklist) {
-    var mask = Object.create(null, {});
-    var redirect = Dict.create(blacklist).mapObject(function(name) { return mask; });
-    return mixinHandler(redirect, target);
-}
-
-function whitelistHandler(target, whitelist) {
-    var catchall = Object.create(null, {});
-    var redirect = Dict.create(whitelist).mapObject(function(name) { return target; });
-    return mixinHandler(redirect, catchall);
-}
-
-/*
- * Mixin proxies break the single-inheritance model of prototypes, so
- * the handler treats all properties as own-properties:
- *
- *                  X
- *                  |
- *     +------------+------------+
- *     |                 O       |
- *     |                 |       |
- *     |  O         O    O       |
- *     |  |         |    |       |
- *     |  O    O    O    O       |
- *     |  |    |    |    |       |
- *     |  O    O    O    O    O  |
- *     |  |    |    |    |    |  |
- *     +-(*)--(w)--(x)--(y)--(z)-+
- */
-
-function mixinHandler(redirect, catchall) {
-    function targetFor(name) {
-        return hasOwn(redirect, name) ? redirect[name] : catchall;
-    }
-
-    function getMuxPropertyDescriptor(name) {
-        var desc = getPropertyDescriptor(targetFor(name), name);
-        if (desc)
-            desc.configurable = true;
-        return desc;
-    }
-
-    function getMuxPropertyNames() {
-        var names1 = Object.getOwnPropertyNames(redirect).filter(function(name) {
-            return name in redirect[name];
-        });
-        var names2 = getPropertyNames(catchall).filter(function(name) {
-            return !hasOwn(redirect, name);
-        });
-        return names1.concat(names2);
-    }
-
-    function enumerateMux() {
-        var result = Object.getOwnPropertyNames(redirect).filter(function(name) {
-            return name in redirect[name];
-        });
-        for (name in catchall) {
-            if (!hasOwn(redirect, name))
-                result.push(name);
-        };
-        return result;
-    }
-
-    function hasMux(name) {
-        return name in targetFor(name);
-    }
-
-    return {
-        getOwnPropertyDescriptor: getMuxPropertyDescriptor,
-        getPropertyDescriptor: getMuxPropertyDescriptor,
-        getOwnPropertyNames: getMuxPropertyNames,
-        defineProperty: function(name, desc) {
-            Object.defineProperty(targetFor(name), name, desc);
-        },
-        "delete": function(name) {
-            var target = targetFor(name);
-            return delete target[name];
-        },
-        // FIXME: ha ha ha
-        fix: function() { },
-        has: hasMux,
-        hasOwn: hasMux,
-        get: function(receiver, name) {
-            var target = targetFor(name);
-            return target[name];
-        },
-        set: function(receiver, name, val) {
-            var target = targetFor(name);
-            target[name] = val;
-            return true;
-        },
-        enumerate: enumerateMux,
-        keys: enumerateMux
-    };
-}
-
-function makePassthruHandler(obj) {
-    // Handler copied from
-    // http://wiki.ecmascript.org/doku.php?id=harmony:proxies&s=proxy%20object#examplea_no-op_forwarding_proxy
-    return {
-        getOwnPropertyDescriptor: function(name) {
-            var desc = Object.getOwnPropertyDescriptor(obj, name);
-
-            // a trapping proxy's properties must always be configurable
-            desc.configurable = true;
-            return desc;
-        },
-        getPropertyDescriptor: function(name) {
-            var desc = getPropertyDescriptor(obj, name);
-
-            // a trapping proxy's properties must always be configurable
-            desc.configurable = true;
-            return desc;
-        },
-        getOwnPropertyNames: function() {
-            return Object.getOwnPropertyNames(obj);
-        },
-        defineProperty: function(name, desc) {
-            Object.defineProperty(obj, name, desc);
-        },
-        "delete": function(name) { return delete obj[name]; },
-        fix: function() {
-            if (Object.isFrozen(obj)) {
-                return getOwnProperties(obj);
-            }
-
-            // As long as obj is not frozen, the proxy won't allow itself to be fixed.
-            return undefined; // will cause a TypeError to be thrown
-        },
-
-        has: function(name) { return name in obj; },
-        hasOwn: function(name) { return ({}).hasOwnProperty.call(obj, name); },
-        get: function(receiver, name) { return obj[name]; },
-
-        // bad behavior when set fails in non-strict mode
-        set: function(receiver, name, val) { obj[name] = val; return true; },
-        enumerate: function() {
-            var result = [];
-            for (name in obj) { result.push(name); };
-            return result;
-        },
-        keys: function() { return Object.keys(obj); }
-    };
-}
-
 var hasOwnProperty = ({}).hasOwnProperty;
 
 function hasOwn(obj, name) {
@@ -584,7 +439,7 @@ Dict.prototype = {
     keys: function() {
         return Object.keys(this.table);
     },
-    toString: function() { return "[object Dict]" }
+    toString: function() { return "[object Dict]"; }
 };
 
 var _WeakMap = typeof WeakMap === "function" ? WeakMap : (function() {
@@ -605,26 +460,26 @@ var _WeakMap = typeof WeakMap === "function" ? WeakMap : (function() {
 
     WeakMap.prototype = {
         has: function(x) {
-            return searchMap(this, x, function() { return true }, function() { return false });
+            return searchMap(this, x, function() { return true; }, function() { return false; });
         },
         set: function(x, v) {
             var a = this.array;
             searchMap(this, x,
-                      function(pair) { pair.value = v },
-                      function() { a.push({ key: x, value: v }) });
+                      function(pair) { pair.value = v; },
+                      function() { a.push({ key: x, value: v }); });
         },
         get: function(x) {
             return searchMap(this, x,
-                             function(pair) { return pair.value },
-                             function() { return null });
+                             function(pair) { return pair.value; },
+                             function() { return null; });
         },
         "delete": function(x) {
             var a = this.array;
             searchMap(this, x,
-                      function(pair, i) { a.splice(i, 1) },
+                      function(pair, i) { a.splice(i, 1); },
                       function() { });
         },
-        toString: function() { return "[object WeakMap]" }
+        toString: function() { return "[object WeakMap]"; }
     };
 
     return WeakMap;
@@ -641,7 +496,7 @@ Stack.prototype = {
     },
     top: function() {
         if (!this.elts)
-            throw new sandbox.Error("empty stack");
+            throw new Error("empty stack");
         return this.elts.top;
     },
     isEmpty: function() {
@@ -655,7 +510,7 @@ Stack.prototype = {
         return null;
     },
     has: function(x) {
-        return Boolean(this.find(function(elt) { return elt === x }));
+        return Boolean(this.find(function(elt) { return elt === x; }));
     },
     forEach: function(f) {
         for (var elts = this.elts; elts; elts = elts.rest) {
@@ -702,10 +557,6 @@ exports.defineProperty = defineProperty;
 exports.isNativeCode = isNativeCode;
 exports.apply = apply;
 exports.applyNew = applyNew;
-exports.mixinHandler = mixinHandler;
-exports.whitelistHandler = whitelistHandler;
-exports.blacklistHandler = blacklistHandler;
-exports.makePassthruHandler = makePassthruHandler;
 exports.Dict = Dict;
 exports.WeakMap = _WeakMap;
 exports.Stack = Stack;

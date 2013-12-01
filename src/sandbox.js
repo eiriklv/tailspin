@@ -261,6 +261,44 @@ functionInternals.set(sandbox.Function.prototype.apply, {
     }
 });
 
+functionInternals.set(sandbox.Function.prototype.bind, {
+    call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
+        var fint = functionInternals.get(t);
+        if (fint) {
+            if (typeof t !== "function") {
+                thrw(new sandbox.TypeError("Bind must be called on a function."));
+            }
+            else {
+                // Bind the native function then create a new function internals that also performs
+                // the binding. This ensures interpreter and native calls to the function work.
+                var newFn = sandbox.Function.prototype.bind.apply(t, a);
+                var newFint = new FunctionInternals();
+                functionInternals.set(newFn, newFint);
+                var newArgs = a.slice(1);
+                var newThis = a[0];
+                
+                // Create new 'call' and 'construct' functions that bind 'this' and arguments.
+                newFint.call = function (f, t, a, x, next, ret, cont, brk, thrw, prev, options) {
+                    t = newThis;
+                    a = a instanceof Array? newArgs.concat(a) : newArgs;
+                    fint.call(f, t, a, x, next, ret, cont, brk, thrw, prev, {callViaFunctionApply:true});
+                }
+                newFint.construct = function (fn, a, x, next, ret, cont, brk, thrw, prev) {
+                    a = a instanceof Array? newArgs.concat(a) : newArgs;
+                    fint.construct(fn, a, x, next, ret, cont, brk, thrw, prev);
+                }
+                
+                next(newFn, prev);
+            }
+        }
+        else {
+            next(sandbox.apply(sandbox.Function.prototype.bind, t, a), prev);
+        }
+    },
+    construct: function(f, a, x, next, ret, cont, brk, thrw, prev) {
+    }
+});
+
 // Array functions.
 // Adding reversible versions of mutating methods.
 // Use sandbox.apply(fn, this, args...) instead of fn.apply(this, args...) so that
@@ -579,7 +617,7 @@ function toObject(v) {
 function FunctionInternals(node, scope) {
     this.node = node;
     this.scope = scope;
-    this.length = node.params.length;
+    this.length = node? node.params.length : 0;
 }
 
 

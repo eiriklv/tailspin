@@ -36,9 +36,9 @@ newFnFunction = function(continuationMarker, fint, x, fnStr) {\n\
     return newFn;\n\
 };\n\
 \n\
-// Turns the array a into an arguments object.\n\
-makeArguments = function(a) {\n\
-    return (function(){return arguments}).apply(undefined, a);\n\
+// Creates an empty arguments object.\n\
+makeArguments = function() {\n\
+    return (function(){return arguments})();\n\
 };\n\
 \n\
 // Apply functions used in order to run functions in the sandbox.\n\
@@ -712,12 +712,15 @@ function callFunction(f, t, a, x, next, ret, cont, brk, thrw, prev, options) {
 
 var continuationMarker = {};
 
-function Activation(f, a) {
-    if (f) {
+function Activation(f, a, callee) {
+    if (f) {        
+        // Convert the array a into a genuine arguments object.
+        args = CreateArguments(a, this, f, callee);
+        
         for (var i = 0, j = f.params.length; i < j; i++) {
             Definitions.defineProperty(this, f.params[i], a[i], true);
         }
-        Definitions.defineProperty(this, "arguments", a, true);
+        Definitions.defineProperty(this, "arguments", args, true);
     }
 }
 
@@ -727,9 +730,61 @@ function Activation(f, a) {
 
 Activation.prototype = Object.create(null);
 
+function CreateArguments(arr, activation, fn, callee) {
+    var len = arr.length;
+    // Create a blank arguments object.
+    var obj = sandbox.makeArguments();
+    
+    Object.defineProperty(obj, "length", {value:len, writable:true, enumerable:false, configurable:true});
+    
+    var map = {};
+    var mappedNames = [];
+    var indx = len-1;
+    var isStrict = fn.body.strict;
+    
+    while (indx >= 0) {
+        var val = arr[indx];
+        Object.defineProperty(obj, indx, {value:val, writable:true, enumerable:true, configurable:true});
+        
+        if (indx < fn.params.length) {
+            var name = fn.params[indx];
+            if (!isStrict && mappedNames.indexOf(name) === -1) {
+                mappedNames.push(name);
+                
+                function getArg(argName) {
+                    return function() {
+                        return activation[argName];
+                    }
+                }
+                function setArg(argName) {
+                    return function(newValue) {
+                        activation[argName] = newValue;
+                    }
+                }
+                
+                Object.defineProperty(obj, indx, {get:getArg(name), set:setArg(name), configurable:true});
+            }
+        }
+        indx = indx-1;
+    }
+    
+    // Define 'callee' and 'caller'.
+    if (!isStrict) {
+        Object.defineProperty(obj, "callee", {value:callee, writable:true, enumerable:false, configurable:true});
+    }
+    else {
+        var thrower = function () { throw new TypeError("Cannot access 'arguments.callee' or 'arguments.caller' in strict mode."); };
+        Object.defineProperty(obj, "callee", {get:thrower, set:thrower, enumerable:false, configurable:false});
+        Object.defineProperty(obj, "caller", {get:thrower, set:thrower, enumerable:false, configurable:false});
+    }
+    
+    return obj;
+}
+
 var FIp = FunctionInternals.prototype = {
     call: function(f, t, a, x, next, ret, cont, brk, thrw, prev, options) {
-        var x2 = interpreter.createFunctionExecutionContext(this.node.body.strict);
+        var n = this.node;
+        var x2 = interpreter.createFunctionExecutionContext(n.body.strict);
         
         // Get the 'this' object for the function call.
         if (x2.strict && options && options.callViaFunctionApply) {
@@ -749,12 +804,8 @@ var FIp = FunctionInternals.prototype = {
         x2.stack = x.stack.slice();
         x2.stack.push({node:x.currentNode, executionContext:x});
         
-        // Convert the array a into a genuine arguments object from the sandbox.
-        a = sandbox.makeArguments(a);
-        Definitions.defineProperty(a, "callee", f, false, false, true);
+        x2.scope = {object: new Activation(n, a, f), parent: this.scope};
         
-        var n = this.node;
-        x2.scope = {object: new Activation(n, a), parent: this.scope};
         if (next) {
             // next continuation enforces undefined value
             // ret continuation is next

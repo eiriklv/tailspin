@@ -325,17 +325,17 @@ functionInternals.set(pushFn, {
 
 functionInternals.set(popFn, {
     call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
-        if (t.length > 0) {
-            var popped = sandbox.apply(popFn, t, a);
-            var newPrev = function() {
+        var oldLength = t.length;
+        var popped = sandbox.apply(popFn, t, a);
+        var newPrev = prev;
+        // Check length to determine if an object was popped.
+        if (t.length !== oldLength) {
+            newPrev = function() {
                 sandbox.apply(pushFn, t, [popped])
                 prev();
             }
-            next(popped, newPrev);
         }
-        else {
-            next(undefined, prev);
-        }
+        next(popped, newPrev);
     },
     construct: function(f, a, x, next, ret, cont, brk, thrw, prev) {
     }
@@ -343,17 +343,17 @@ functionInternals.set(popFn, {
 
 functionInternals.set(shiftFn, {
     call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
-        if (t.length > 0) {
-            var shifted = sandbox.apply(shiftFn, t, a);
-            var newPrev = function() {
+        var oldLength = t.length;
+        var shifted = sandbox.apply(shiftFn, t, a);
+        var newPrev = prev;
+        // Check length to determine if an object was shifted.
+        if (t.length !== oldLength) {
+            newPrev = function() {
                 sandbox.apply(unshiftFn, t, [shifted])
                 prev();
             }
-            next(shifted, newPrev);
         }
-        else {
-            next(undefined, prev);
-        }
+        next(shifted, newPrev);
     },
     construct: function(f, a, x, next, ret, cont, brk, thrw, prev) {
     }

@@ -49,8 +49,8 @@
  */
 
 var Lexer = (function () {
-// Set constants in the local scope.
-eval(Definitions.consts);
+"use strict";
+var tk = Definitions.tokenIds;
 
 // Build up a trie of operator tokens.
 var opTokens = {};
@@ -135,7 +135,7 @@ Tokenizer.prototype = {
     get done() {
         // We need to set scanOperand to true here because the first thing
         // might be a regexp.
-        return this.peek(true) === END;
+        return this.peek(true) === tk.END;
     },
 
     get token() {
@@ -158,8 +158,8 @@ Tokenizer.prototype = {
         var tt, next;
         if (this.lookahead) {
             next = this.tokens[(this.tokenIndex + this.lookahead) & 3];
-            tt = (this.scanNewlines && next.lineno !== this.lineno)
-                ? NEWLINE
+            tt = (this.scanNewlines && next.lineno !== this.lineno) ?
+                  tk.NEWLINE
                 : next.type;
         } else {
             tt = this.get(scanOperand);
@@ -200,6 +200,7 @@ Tokenizer.prototype = {
                 this.lineno++;
             } else if (ch === '/' && next === '*') {
                 var commentStart = ++this.cursor;
+                var commentEnd = commentStart;
                 for (;;) {
                     ch = input[this.cursor++];
                     if (ch === undefined)
@@ -208,7 +209,7 @@ Tokenizer.prototype = {
                     if (ch === '*') {
                         next = input[this.cursor];
                         if (next === '/') {
-                            var commentEnd = this.cursor - 1;
+                            commentEnd = this.cursor - 1;
                             this.cursor++;
                             break;
                         }
@@ -276,7 +277,7 @@ Tokenizer.prototype = {
 
     lexZeroNumber: function (ch) {
         var token = this.token, input = this.source;
-        token.type = NUMBER;
+        token.type = tk.NUMBER;
 
         ch = input[this.cursor++];
         if (ch === '.') {
@@ -321,7 +322,7 @@ Tokenizer.prototype = {
 
     lexNumber: function (ch) {
         var token = this.token, input = this.source;
-        token.type = NUMBER;
+        token.type = tk.NUMBER;
 
         var floating = false;
         do {
@@ -352,11 +353,11 @@ Tokenizer.prototype = {
 
             this.lexExponent();
 
-            token.type = NUMBER;
+            token.type = tk.NUMBER;
             token.value = parseFloat(
                 input.substring(token.start, this.cursor));
         } else {
-            token.type = DOT;
+            token.type = tk.DOT;
             token.assignOp = null;
             token.value = '.';
         }
@@ -364,7 +365,7 @@ Tokenizer.prototype = {
 
     lexString: function (ch) {
         var token = this.token, input = this.source;
-        token.type = STRING;
+        token.type = tk.STRING;
 
         var hasEscapes = false;
         var delim = ch;
@@ -411,7 +412,7 @@ Tokenizer.prototype = {
 
     lexRegExp: function (ch) {
         var token = this.token, input = this.source;
-        token.type = REGEXP;
+        token.type = tk.REGEXP;
 
         do {
             ch = input[this.cursor++];
@@ -462,7 +463,7 @@ Tokenizer.prototype = {
         var op = node.op;
         if (Definitions.assignOps[op] && input[this.cursor] === '=') {
             this.cursor++;
-            token.type = ASSIGN;
+            token.type = tk.ASSIGN;
             token.assignOp = Definitions.tokenIds[Definitions.opTypeNames[op]];
             op += '=';
         } else {
@@ -482,7 +483,7 @@ Tokenizer.prototype = {
             id += ch;
         }
 
-        token.type = IDENTIFIER;
+        token.type = tk.IDENTIFIER;
         token.value = id;
 
         if (keywordIsName)
@@ -524,9 +525,9 @@ Tokenizer.prototype = {
             --this.lookahead;
             this.tokenIndex = (this.tokenIndex + 1) & 3;
             token = this.tokens[this.tokenIndex];
-            if (token.type !== NEWLINE || this.scanNewlines) {
+            if (token.type !== tk.NEWLINE || this.scanNewlines) {
                 if (keywordIsName && token.value in Definitions.keywords) {
-                    return IDENTIFIER;
+                    return tk.IDENTIFIER;
                 }
                 return token.type;
             }
@@ -536,12 +537,15 @@ Tokenizer.prototype = {
 
         this.tokenIndex = (this.tokenIndex + 1) & 3;
         token = this.tokens[this.tokenIndex];
-        if (!token)
+        if (!token) {
             this.tokens[this.tokenIndex] = token = {};
+        }
 
         var input = this.source;
-        if (this.cursor >= input.length)
-            return token.type = END;
+        if (this.cursor >= input.length) {
+            token.type = tk.END;
+            return token.type;
+        }
 
         token.start = this.cursor;
         token.lineno = this.lineno;
@@ -565,7 +569,7 @@ Tokenizer.prototype = {
         } else if (this.scanNewlines && Definitions.newlines[ch]) {
             // if this was a \r, look for \r\n
             if (ch === '\r' && input[this.cursor] === '\n') this.cursor++;
-            token.type = NEWLINE;
+            token.type = tk.NEWLINE;
             token.value = '\n';
             this.lineno++;
         } else {
@@ -591,8 +595,8 @@ Tokenizer.prototype = {
         var e = new errorClass(m, this.filename, this.lineno);
         e.source = this.source;
         e.sourceLine = this.lineno;
-        e.cursor = this.lookahead
-            ? this.tokens[(this.tokenIndex + this.lookahead) & 3].start
+        e.cursor = this.lookahead ?
+              this.tokens[(this.tokenIndex + this.lookahead) & 3].start
             : this.cursor;
         return e;
     },

@@ -1145,7 +1145,9 @@ executeFunctions[OBJECT_INIT] = function exObjectInit(n, x, next, ret, cont, brk
                     // Set the property on newObject.
                     var key = property.children[0].value;
                     var newPrev = prevSaveValue(newObject, key, prev);
-                    newObject[key] = value;
+                    
+                    Object.defineProperty(newObject, key,
+                        {value:value, enumerable:true, configurable:true, writable:true});
                     
                     // Continue looping.
                     forLoop(i+1, newPrev);

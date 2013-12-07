@@ -278,7 +278,14 @@ executeFunctions[SCRIPT] = function exScript(n, x, next, ret, cont, brk, thrw, p
         // But for reversible code we define all fns as deletable.
         // All function declarations start as the function.
         var deletable = prev || x.type === EVAL_CODE;
-        Object.defineProperty(t, name, {value:f, configurable:deletable, writable:true});
+        
+        // Special handling for parameters of Activations which are defined as getter/setters.
+        if (hasDirectProperty(t, name)) {
+            t[name] = f;
+        }
+        else {
+            Object.defineProperty(t, name, {value:f, configurable:deletable, writable:true});
+        }
         
         prev = delPrev(t, name, prev);
     }

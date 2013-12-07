@@ -714,13 +714,45 @@ var continuationMarker = {};
 
 function Activation(f, a, callee) {
     if (f) {        
-        // Convert the array a into a genuine arguments object.
-        args = CreateArguments(a, this, f, callee);
+        // ugly method of creating a function with the correct # of arguments
+        var args = f.params.join(", ");
+        var accessors = f.params.map(function(name) {
+            return "{get:function(){return "+name+";}, set:function(v){"+name+" = v;}, configurable:false}";
+          }).join(", ");
         
-        for (var i = 0, j = f.params.length; i < j; i++) {
-            Definitions.defineProperty(this, f.params[i], a[i], true);
+        var fnStr = "(function("+args+"){\n"+
+                "return {args:arguments, accessors:["+accessors+"]};\n\
+            })";
+        
+        var r = sandbox.eval(fnStr).apply(null, a);
+        var paramNames = {};
+        
+        for (var i=f.params.length-1; i>=0; i--) {
+            if (!Object.prototype.hasOwnProperty.call(this, f.params[i])) {
+                if (!f.body.strict) {
+                    Object.defineProperty(this, f.params[i], r.accessors[i]);
+                    paramNames[f.params[i]] = true;
+                }
+                else if (a.length > i) {
+                    Object.defineProperty(this, f.params[i], {value:a[i], writable:true, enumerable:false, configurable:true});
+                }
+            }
         }
-        Definitions.defineProperty(this, "arguments", args, true);
+        
+        
+        Object.defineProperty(r.args, "length", {value:a.length, writable:true, enumerable:false, configurable:true});
+        
+        // Define 'callee' and 'caller'.
+        if (!f.body.strict) {
+            Object.defineProperty(r.args, "callee", {value:callee, writable:true, enumerable:false, configurable:true});
+        }
+        else {
+            var thrower = function () { throw new TypeError("Cannot access 'arguments.callee' or 'arguments.caller' in strict mode."); };
+            Object.defineProperty(r.args, "callee", {get:thrower, set:thrower, enumerable:false, configurable:false});
+            Object.defineProperty(r.args, "caller", {get:thrower, set:thrower, enumerable:false, configurable:false});
+        }
+        
+        Definitions.defineProperty(this, "arguments", r.args, true);
     }
 }
 
@@ -729,57 +761,6 @@ function Activation(f, a, callee) {
 // property so that it doesn't pollute function scopes.
 
 Activation.prototype = Object.create(null);
-
-function CreateArguments(arr, activation, fn, callee) {
-    var len = arr.length;
-    // Create a blank arguments object.
-    var obj = sandbox.makeArguments();
-    
-    Object.defineProperty(obj, "length", {value:len, writable:true, enumerable:false, configurable:true});
-    
-    var map = {};
-    var mappedNames = [];
-    var indx = len-1;
-    var isStrict = fn.body.strict;
-    
-    while (indx >= 0) {
-        var val = arr[indx];
-        Object.defineProperty(obj, indx, {value:val, writable:true, enumerable:true, configurable:true});
-        
-        if (indx < fn.params.length) {
-            var name = fn.params[indx];
-            if (!isStrict && mappedNames.indexOf(name) === -1) {
-                mappedNames.push(name);
-                
-                function getArg(argName) {
-                    return function() {
-                        return activation[argName];
-                    }
-                }
-                function setArg(argName) {
-                    return function(newValue) {
-                        activation[argName] = newValue;
-                    }
-                }
-                
-                Object.defineProperty(obj, indx, {get:getArg(name), set:setArg(name), configurable:true});
-            }
-        }
-        indx = indx-1;
-    }
-    
-    // Define 'callee' and 'caller'.
-    if (!isStrict) {
-        Object.defineProperty(obj, "callee", {value:callee, writable:true, enumerable:false, configurable:true});
-    }
-    else {
-        var thrower = function () { throw new TypeError("Cannot access 'arguments.callee' or 'arguments.caller' in strict mode."); };
-        Object.defineProperty(obj, "callee", {get:thrower, set:thrower, enumerable:false, configurable:false});
-        Object.defineProperty(obj, "caller", {get:thrower, set:thrower, enumerable:false, configurable:false});
-    }
-    
-    return obj;
-}
 
 var FIp = FunctionInternals.prototype = {
     call: function(f, t, a, x, next, ret, cont, brk, thrw, prev, options) {

@@ -613,6 +613,7 @@ Tokenizer.prototype = {
         var input = this.source;
         if (this.cursor >= input.length) return null;
         var ch = input[this.cursor];
+        var chInc = 1;
 
         // first check for \u escapes
         if (ch === '\\' && input[this.cursor+1] === 'u') {
@@ -624,11 +625,13 @@ Tokenizer.prototype = {
             } catch (ex) {
                 return null;
             }
-            this.cursor += 5;
+            chInc = 6;
         }
 
         var valid = isValidIdentifierChar(ch, first);
-        if (valid) this.cursor++;
+        if (valid) {
+            this.cursor += chInc;
+        }
         return (valid ? ch : null);
     },
 };

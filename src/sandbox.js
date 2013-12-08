@@ -748,7 +748,7 @@ function Activation(f, a, callee) {
         // Only add 'arguments' if it is not already a parameter.
         if (!paramNames["arguments"]) {
             // Set 'arguments' on Activation.
-            Object.defineProperty(this, "arguments", {value:r.args, writable:true, enumerable:false, configurable:true});
+            Object.defineProperty(this, "arguments", {value:r.args, writable:true, enumerable:false, configurable:false});
             
             // Define 'callee' and 'caller' on arguments.
             if (!f.body.strict) {

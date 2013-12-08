@@ -44,11 +44,17 @@
  * Decompiler and pretty-printer.
  */
 
-var Decompiler = (function () {
-var tokens = Definitions.tokens;
+
+// Outer non-strict code.
+(function () {
 
 // Set constants in the local scope.
 eval(Definitions.consts);
+
+Decompiler = (function () {
+"use strict";
+
+var tokens = Definitions.tokens;
 
 function indent(n, s) {
     var ss = "", d = true;
@@ -549,4 +555,5 @@ var exports = {};
 exports.pp = pp;
 
 return exports;
+})();
 })();

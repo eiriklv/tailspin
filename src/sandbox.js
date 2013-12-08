@@ -712,6 +712,9 @@ function callFunction(f, t, a, x, next, ret, cont, brk, thrw, prev, options) {
 
 var continuationMarker = {};
 
+// Get the sandbox poison function for callee and caller to ensure the same function is always used.
+var calleeCallerPoisonFn = sandbox.eval("'use strict'; Object.getOwnPropertyDescriptor(function() {}, 'caller').get");
+
 function Activation(f, a, callee) {
     if (f) {        
         // Ugly method of creating an arguments object with the correct properties.
@@ -755,9 +758,8 @@ function Activation(f, a, callee) {
                 Object.defineProperty(r.args, "callee", {value:callee, writable:true, enumerable:false, configurable:true});
             }
             else {
-                var thrower = function () { throw new TypeError("Cannot access 'arguments.callee' or 'arguments.caller' in strict mode."); };
-                Object.defineProperty(r.args, "callee", {get:thrower, set:thrower, enumerable:false, configurable:false});
-                Object.defineProperty(r.args, "caller", {get:thrower, set:thrower, enumerable:false, configurable:false});
+                Object.defineProperty(r.args, "callee", {get:calleeCallerPoisonFn, set:calleeCallerPoisonFn, enumerable:false, configurable:false});
+                Object.defineProperty(r.args, "caller", {get:calleeCallerPoisonFn, set:calleeCallerPoisonFn, enumerable:false, configurable:false});
             }
         }
     }

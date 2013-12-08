@@ -306,7 +306,10 @@ if (Function.prototype.bind) {
     };
 }
 
-var hasOwnProperty = ({}).hasOwnProperty;
+// Helper to avoid Object.prototype.hasOwnProperty polluting scope objects.
+function hasDirectProperty(o, p) {
+    return Object.prototype.hasOwnProperty.call(o, p);
+}
 
 function Dict(table, size) {
     this.table = table || Object.create(null, {});
@@ -326,15 +329,15 @@ Dict.create = function(table) {
 };
 
 Dict.prototype = {
-    has: function(x) { return hasOwnProperty.call(this.table, x); },
+    has: function(x) { return hasDirectProperty(this.table, x); },
     set: function(x, v) {
-        if (!hasOwnProperty.call(this.table, x))
+        if (!hasDirectProperty(this.table, x))
             this.size++;
         this.table[x] = v;
     },
     get: function(x) { return this.table[x]; },
     getDef: function(x, thunk) {
-        if (!hasOwnProperty.call(this.table, x)) {
+        if (!hasDirectProperty(this.table, x)) {
             this.size++;
             this.table[x] = thunk();
         }
@@ -343,7 +346,7 @@ Dict.prototype = {
     forEach: function(f) {
         var table = this.table;
         for (var key in table) {
-            if (hasOwnProperty.call(table, key)) {
+            if (hasDirectProperty(table, key)) {
                 f.call(this, key, table[key]);
             }
         }
@@ -369,7 +372,7 @@ Dict.prototype = {
         return Object.getOwnPropertyNames(this.table)[0];
     },
     remove: function(x) {
-        if (hasOwnProperty.call(this.table, x)) {
+        if (hasDirectProperty(this.table, x)) {
             this.size--;
             delete this.table[x];
         }
@@ -377,7 +380,7 @@ Dict.prototype = {
     copy: function() {
         var table = Object.create(null, {});
         for (var key in this.table) {
-            if (hasOwnProperty.call(table, key)) {
+            if (hasDirectProperty(table, key)) {
                 table[key] = this.table[key];
             }
         }
@@ -454,6 +457,7 @@ exports.tokenIds = tokenIds;
 exports.consts = consts;
 exports.assignOps = assignOps;
 exports.defineProperty = defineProperty;
+exports.hasDirectProperty = hasDirectProperty;
 exports.isNativeCode = isNativeCode;
 exports.apply = apply;
 exports.applyNew = applyNew;

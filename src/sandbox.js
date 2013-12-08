@@ -13,6 +13,8 @@
 
 var Sandbox = function (interpreter) {
 
+var hasDirectProperty = Definitions.hasDirectProperty;
+
 // Functions are created as a native javascript function, and an associated internal implementation.
 // When a function is called from Tailspin, the internal version is used with the correct
 // continuations. Called from native code a function created by Tailspin calls the internal version
@@ -30,11 +32,6 @@ var functionInternals = {
         return hasDirectProperty(fn, "__tailspin_internal__");
     }
 };
- 
-// Helper to avoid Object.prototype.hasOwnProperty polluting scope objects.
-function hasDirectProperty(o, p) {
-    return Object.prototype.hasOwnProperty.call(o, p);
-}
 
 // We create an iframe to sandbox the base objects.
 var nativeBase;
@@ -940,7 +937,6 @@ exports.isPrimitive = isPrimitive;
 exports.isObject = isObject;
 exports.toObjectCheck = toObjectCheck;
 exports.toObject = toObject;
-exports.hasDirectProperty = hasDirectProperty;
 
 exports.Activation = Activation;
 exports.newFunction = newFunction;

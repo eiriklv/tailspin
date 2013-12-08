@@ -58,11 +58,8 @@ var hasInstance = sandboxExports.hasInstance;
 var constructFunction = sandboxExports.constructFunction;
 var callFunction = sandboxExports.callFunction;
 
+var hasDirectProperty = Definitions.hasDirectProperty;
 
-// Helper to avoid Object.prototype.hasOwnProperty polluting scope objects.
-function hasDirectProperty(o, p) {
-    return Object.prototype.hasOwnProperty.call(o, p);
-}
 
 function Reference(base, propertyName, node) {
     this.base = base;

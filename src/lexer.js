@@ -47,6 +47,9 @@
  *
  * Lexical scanner.
  */
+ 
+
+var nonStrictEval = eval;
 
 var Lexer = (function () {
 "use strict";
@@ -402,7 +405,7 @@ Tokenizer.prototype = {
                 token.value = eval('"use strict"; '+input.substring(token.start, this.cursor));
             }
             else {
-                token.value = eval(input.substring(token.start, this.cursor));
+                token.value = nonStrictEval(input.substring(token.start, this.cursor));
             }
         }
         else {

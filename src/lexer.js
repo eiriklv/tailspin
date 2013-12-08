@@ -47,7 +47,7 @@
  *
  * Lexical scanner.
  */
- 
+
 
 var nonStrictEval = eval;
 
@@ -58,16 +58,18 @@ var tk = Definitions.tokenIds;
 // Build up a trie of operator tokens.
 var opTokens = {};
 for (var op in Definitions.opTypeNames) {
-    if (op === '\n' || op === '.')
-        continue;
-
-    var node = opTokens;
-    for (var i = 0; i < op.length; i++) {
-        var ch = op[i];
-        if (!(ch in node))
-            node[ch] = {};
-        node = node[ch];
-        node.op = op;
+    if (Object.prototype.hasOwnProperty.call(Definitions.opTypeNames, op)) {
+        if (op === '\n' || op === '.')
+            continue;
+    
+        var node = opTokens;
+        for (var i = 0; i < op.length; i++) {
+            var ch = op[i];
+            if (!(ch in node))
+                node[ch] = {};
+            node = node[ch];
+            node.op = op;
+        }
     }
 }
 
@@ -161,9 +163,7 @@ Tokenizer.prototype = {
         var tt, next;
         if (this.lookahead) {
             next = this.tokens[(this.tokenIndex + this.lookahead) & 3];
-            tt = (this.scanNewlines && next.lineno !== this.lineno) ?
-                  tk.NEWLINE
-                : next.type;
+            tt = (this.scanNewlines && next.lineno !== this.lineno) ? tk.NEWLINE : next.type;
         } else {
             tt = this.get(scanOperand);
             this.unget();
@@ -290,9 +290,9 @@ Tokenizer.prototype = {
             this.cursor--;
 
             this.lexExponent();
-            token.value = parseFloat(
-                input.substring(token.start, this.cursor));
-        } else if (ch === 'x' || ch === 'X') {
+            token.value = parseFloat(input.substring(token.start, this.cursor));
+        }
+        else if (ch === 'x' || ch === 'X') {
             do {
                 ch = input[this.cursor++];
             } while ((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') ||
@@ -304,7 +304,8 @@ Tokenizer.prototype = {
             }
 
             token.value = parseInt(input.substring(token.start, this.cursor));
-        } else if (ch >= '0' && ch <= '9') {
+        }
+        else if (ch >= '0' && ch <= '9') {
             if (this.parser.x.strictMode) {
                 throw this.newSyntaxError("Octal escapes are forbidden in strict mode");
             }
@@ -316,7 +317,8 @@ Tokenizer.prototype = {
             this.cursor--;
 
             token.value = parseInt(input.substring(token.start, this.cursor));
-        } else {
+        }
+        else {
             this.cursor--;
             this.lexExponent();     // 0E1, &c.
             token.value = 0;
@@ -357,8 +359,7 @@ Tokenizer.prototype = {
             this.lexExponent();
 
             token.type = tk.NUMBER;
-            token.value = parseFloat(
-                input.substring(token.start, this.cursor));
+            token.value = parseFloat(input.substring(token.start, this.cursor));
         } else {
             token.type = tk.DOT;
             token.assignOp = null;
@@ -421,7 +422,8 @@ Tokenizer.prototype = {
             ch = input[this.cursor++];
             if (ch === '\\') {
                 this.cursor++;
-            } else if (ch === '[') {
+            }
+            else if (ch === '[') {
                 do {
                     if (ch === undefined)
                         throw this.newSyntaxError("Unterminated character class");
@@ -431,7 +433,8 @@ Tokenizer.prototype = {
 
                     ch = input[this.cursor++];
                 } while (ch !== ']');
-            } else if (ch === undefined) {
+            }
+            else if (ch === undefined) {
                 throw this.newSyntaxError("Unterminated regex");
             }
         } while (ch !== '/');

@@ -261,32 +261,6 @@ for (i = 0, j = assignOps.length; i < j; i++) {
     assignOps[t] = tokens[t];
 }
 
-function defineGetter(obj, prop, fn, dontDelete, dontEnum) {
-    Object.defineProperty(obj, prop,
-                          { get: fn, configurable: !dontDelete, enumerable: !dontEnum });
-}
-
-function defineGetterSetter(obj, prop, getter, setter, dontDelete, dontEnum) {
-    Object.defineProperty(obj, prop, {
-        get: getter,
-        set: setter,
-        configurable: !dontDelete,
-        enumerable: !dontEnum
-    });
-}
-
-function defineMemoGetter(obj, prop, fn, dontDelete, dontEnum) {
-    Object.defineProperty(obj, prop, {
-        get: function() {
-            var val = fn();
-            defineProperty(obj, prop, val, dontDelete, true, dontEnum);
-            return val;
-        },
-        configurable: true,
-        enumerable: !dontEnum
-    });
-}
-
 function defineProperty(obj, prop, val, dontDelete, readOnly, dontEnum) {
     Object.defineProperty(obj, prop,
                           { value: val, writable: !readOnly, configurable: !dontDelete,
@@ -332,37 +306,7 @@ if (Function.prototype.bind) {
     };
 }
 
-function getPropertyDescriptor(obj, name) {
-    while (obj) {
-        if (({}).hasOwnProperty.call(obj, name))
-            return Object.getOwnPropertyDescriptor(obj, name);
-        obj = Object.getPrototypeOf(obj);
-    }
-}
-
-function getPropertyNames(obj) {
-    var table = Object.create(null, {});
-    while (obj) {
-        var names = Object.getOwnPropertyNames(obj);
-        for (var i = 0, n = names.length; i < n; i++)
-            table[names[i]] = true;
-        obj = Object.getPrototypeOf(obj);
-    }
-    return Object.keys(table);
-}
-
-function getOwnProperties(obj) {
-    var map = {};
-    for (var name in Object.getOwnPropertyNames(obj))
-        map[name] = Object.getOwnPropertyDescriptor(obj, name);
-    return map;
-}
-
 var hasOwnProperty = ({}).hasOwnProperty;
-
-function hasOwn(obj, name) {
-    return hasOwnProperty.call(obj, name);
-}
 
 function Dict(table, size) {
     this.table = table || Object.create(null, {});
@@ -398,11 +342,13 @@ Dict.prototype = {
     },
     forEach: function(f) {
         var table = this.table;
-        for (var key in table)
-            f.call(this, key, table[key]);
+        for (var key in table) {
+            if (hasOwnProperty.call(table, key)) {
+                f.call(this, key, table[key]);
+            }
+        }
     },
     map: function(f) {
-        var table1 = this.table;
         var table2 = Object.create(null, {});
         this.forEach(function(key, val) {
             table2[key] = f.call(this, val, key);
@@ -410,7 +356,6 @@ Dict.prototype = {
         return new Dict(table2, this.size);
     },
     mapObject: function(f) {
-        var table1 = this.table;
         var table2 = Object.create(null, {});
         this.forEach(function(key, val) {
             table2[key] = f.call(this, val, key);
@@ -431,8 +376,11 @@ Dict.prototype = {
     },
     copy: function() {
         var table = Object.create(null, {});
-        for (var key in this.table)
-            table[key] = this.table[key];
+        for (var key in this.table) {
+            if (hasOwnProperty.call(table, key)) {
+                table[key] = this.table[key];
+            }
+        }
         return new Dict(table, this.size);
     },
     keys: function() {
@@ -440,49 +388,6 @@ Dict.prototype = {
     },
     toString: function() { return "[object Dict]"; }
 };
-
-var _WeakMap = typeof WeakMap === "function" ? WeakMap : (function() {
-    // shim for ES6 WeakMap with poor asymptotics
-    function WeakMap(array) {
-        this.array = array || [];
-    }
-
-    function searchMap(map, key, found, notFound) {
-        var a = map.array;
-        for (var i = 0, n = a.length; i < n; i++) {
-            var pair = a[i];
-            if (pair.key === key)
-                return found(pair, i);
-        }
-        return notFound();
-    }
-
-    WeakMap.prototype = {
-        has: function(x) {
-            return searchMap(this, x, function() { return true; }, function() { return false; });
-        },
-        set: function(x, v) {
-            var a = this.array;
-            searchMap(this, x,
-                      function(pair) { pair.value = v; },
-                      function() { a.push({ key: x, value: v }); });
-        },
-        get: function(x) {
-            return searchMap(this, x,
-                             function(pair) { return pair.value; },
-                             function() { return null; });
-        },
-        "delete": function(x) {
-            var a = this.array;
-            searchMap(this, x,
-                      function(pair, i) { a.splice(i, 1); },
-                      function() { });
-        },
-        toString: function() { return "[object WeakMap]"; }
-    };
-
-    return WeakMap;
-})();
 
 // non-destructive stack
 function Stack(elts) {
@@ -548,15 +453,11 @@ exports.isStatementStartCode = isStatementStartCode;
 exports.tokenIds = tokenIds;
 exports.consts = consts;
 exports.assignOps = assignOps;
-exports.defineGetter = defineGetter;
-exports.defineGetterSetter = defineGetterSetter;
-exports.defineMemoGetter = defineMemoGetter;
 exports.defineProperty = defineProperty;
 exports.isNativeCode = isNativeCode;
 exports.apply = apply;
 exports.applyNew = applyNew;
 exports.Dict = Dict;
-exports.WeakMap = _WeakMap;
 exports.Stack = Stack;
 return exports;
 })();

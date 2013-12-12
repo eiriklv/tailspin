@@ -528,9 +528,18 @@ Tokenizer.prototype = {
     get: function (scanOperand, keywordIsName) {
         var token;
         while (this.lookahead) {
-            --this.lookahead;
-            this.tokenIndex = (this.tokenIndex + 1) & 3;
-            token = this.tokens[this.tokenIndex];
+            var newTokenIndex = (this.tokenIndex + 1) & 3;
+            token = this.tokens[newTokenIndex];
+            
+            if (scanOperand && token.value === '/') {
+                // Need to scan for regex instead of division.
+                this.discardLookahead();
+                break;
+            }
+            
+            this.lookahead--;
+            this.tokenIndex = newTokenIndex;
+            
             if (token.type !== tk.NEWLINE || this.scanNewlines) {
                 if (keywordIsName && token.value in Definitions.keywords) {
                     return tk.IDENTIFIER;
@@ -594,6 +603,15 @@ Tokenizer.prototype = {
     unget: function () {
         if (++this.lookahead === 4) throw "PANIC: too much lookahead!";
         this.tokenIndex = (this.tokenIndex - 1) & 3;
+    },
+    
+    discardLookahead: function () {
+        while (this.lookahead) {
+            --this.lookahead;
+            this.tokenIndex = (this.tokenIndex + 1) & 3;
+            var token = this.tokens[this.tokenIndex];
+            this.cursor = token.start;
+        }
     },
 
     newError: function (errorClass, m) {

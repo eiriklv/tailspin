@@ -28,9 +28,24 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 
-var Interpreter = function () {
+// Outer non-strict code.
+(function () {
+
 // Set constants in the local scope.
 eval(Definitions.consts);
+
+function nonStrictGetValue(base, name) {
+    return base[name];
+}
+function nonStrictPutValue(base, name, value) {
+    return base[name] = value;
+}
+function nonStrictDeleteValue(base, name) {
+    return delete base[name];
+}
+
+Interpreter = function () {
+"use strict";
 
 var GLOBAL_CODE = 0, EVAL_CODE = 1, FUNCTION_CODE = 2;
 
@@ -142,13 +157,11 @@ function getValue(ref, next, thrw, strict, prev) {
             if (strict) {
                 // if we are in strict mode, get the property in a strict function
                 // the browser's javascript will then catch the bad accesses
-                (function() {
-                    "use strict";
-                    value = ref.base[ref.propertyName];
-                })();
+                value = ref.base[ref.propertyName];
             }
             else {
-                value = ref.base[ref.propertyName];
+                // otherwise access using a non-strict function
+                value = nonStrictGetValue(ref.base, ref.propertyName);
             }
         }
     }
@@ -168,13 +181,11 @@ function putValue(x, ref, value, refNode, strict, next, thrw, prev) {
         if (strict) {
             // if we are in strict mode, run the assignment in a strict function
             // the browser's javascript will then catch the bad assignments
-            (function() {
-                "use strict";
-                result = base[ref.propertyName] = value;
-            })();
+            result = base[ref.propertyName] = value;
         }
         else {
-            result = base[ref.propertyName] = value;
+            // otherwise access using a non-strict function
+            result = nonStrictPutValue(base, ref.propertyName, value);
         }
         next(result, newPrev);
     }
@@ -724,7 +735,7 @@ executeFunctions[VAR] = function exVar(n, x, next, ret, cont, brk, thrw, prev) {
                         // Create a function to reverse this assignment.
                         var newPrev = prevSaveValue(s.object, name, prev);
                         // Set the new value.
-                        s.object[name] = value;
+                        nonStrictPutValue(s.object, name, value);
                         
                         // Continue the loop, incrementing i.
                         forLoop(i+1, newPrev);
@@ -943,13 +954,12 @@ executeFunctions[DELETE] = function exDelete(n, x, next, ret, cont, brk, thrw, p
                 newPrev = prevSaveValue(t.base, t.propertyName, prev);
                 
                 if (x.strict) {
-                    (function() {
-                        "use strict";
-                        v = delete t.base[t.propertyName];
-                    })();
+                    // already in strict code, just delete normally
+                    v = delete t.base[t.propertyName];
                 }
                 else {
-                    v = delete t.base[t.propertyName];
+                    // otherwise delete using a non-strict function
+                    v = nonStrictDeleteValue(t.base, t.propertyName);
                 }
             }
             next(v, newPrev);
@@ -1331,3 +1341,4 @@ exports.createFunctionExecutionContext = createFunctionExecutionContext;
 
 return exports;
 };
+})();

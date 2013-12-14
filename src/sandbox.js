@@ -787,10 +787,10 @@ var FIp = FunctionInternals.prototype = {
             x2.thisObject = t;
         }
         else if (x2.strict) {
-            x2.thisObject = (t !== global? t : undefined);
+            x2.thisObject = t !== global? t : undefined;
         }
         else {
-            x2.thisObject = (t || global);
+            x2.thisObject = toObject(t) || global;
         }
         
         x2.functionInstance = this;

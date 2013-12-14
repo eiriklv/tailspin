@@ -145,8 +145,18 @@ function prevDeleteValue(base, key, prev) {
     return newPrev;
 }
 
-function getValue(ref, next, thrw, strict, prev) {
-    var value;
+function getPropertyDescriptor(obj, propName) {
+    var propDesc;
+    while (!propDesc && obj) {
+        propDesc = Object.getOwnPropertyDescriptor(obj, propName);
+        if (!propDesc) {
+            obj = Object.getPrototypeOf(obj);
+        }
+    }
+    return propDesc;
+}
+
+function getValue(x, ref, next, thrw, prev) {
     if (ref instanceof Reference) {
         if (ref.base === null || ref.base === undefined) {
             thrw(newReferenceError(ref.propertyName + " is not defined",
@@ -154,40 +164,61 @@ function getValue(ref, next, thrw, strict, prev) {
             return;
         }
         else {
-            if (strict) {
-                // if we are in strict mode, get the property in a strict function
-                // the browser's javascript will then catch the bad accesses
-                value = ref.base[ref.propertyName];
+            var base = toObject(ref.base);
+            var propDesc = getPropertyDescriptor(base, ref.propertyName);
+            
+            if (propDesc && propDesc.get) {
+                // Handle getter properties by calling function.
+                var nextGV = function (value, prev) {
+                    next(value, prev, ref);
+                }
+                callFunction(propDesc.get, ref.base, [], x, nextGV, null, null, null, thrw, prev);
             }
             else {
-                // otherwise access using a non-strict function
-                value = nonStrictGetValue(ref.base, ref.propertyName);
+                var value;
+                if (x.strict) {
+                    // if we are in strict mode, get the property in a strict function
+                    // the browser's javascript will then catch the bad accesses
+                    value = base[ref.propertyName];
+                }
+                else {
+                    // otherwise access using a non-strict function
+                    value = nonStrictGetValue(base, ref.propertyName);
+                }
+                next(value, prev, ref);
             }
         }
     }
     else {
-        value = ref;
+        next(ref, prev, ref);
     }
-    
-    next(value, prev, ref);
 }
 
 function putValue(x, ref, value, refNode, strict, next, thrw, prev) {
     if (ref instanceof Reference) {
-        var base = (ref.base || global);
-        var newPrev = prevSaveValue(base, ref.propertyName, prev);
+        var base = (toObject(ref.base) || global);
+        var propDesc = getPropertyDescriptor(base, ref.propertyName);
         
-        var result;
-        if (strict) {
-            // if we are in strict mode, run the assignment in a strict function
-            // the browser's javascript will then catch the bad assignments
-            result = base[ref.propertyName] = value;
+        if (propDesc && propDesc.set) {
+            // Handle setter properties by calling function.
+            callFunction(propDesc.set, ref.base, [], x, next, null, null, null, thrw, prev);
         }
         else {
-            // otherwise access using a non-strict function
-            result = nonStrictPutValue(base, ref.propertyName, value);
+            var newPrev = prevSaveValue(base, ref.propertyName, prev);
+            var result;
+            
+            if (strict) {
+                // if we are in strict mode, run the assignment in a strict function
+                // the browser's javascript will then catch the bad assignments
+                result = base[ref.propertyName] = value;
+            }
+            else {
+                // otherwise access using a non-strict function
+                result = nonStrictPutValue(base, ref.propertyName, value);
+            }
+            
+            next(result, newPrev);
         }
-        next(result, newPrev);
     }
     else {
         thrw(newReferenceError("Invalid assignment left-hand side",
@@ -198,10 +229,10 @@ function putValue(x, ref, value, refNode, strict, next, thrw, prev) {
 function executeGV(n, x, next, ret, cont, brk, thrw, prev) {
     // execute then getValue of the returned var then continue
     execute(n, x, function(r, prev) {
-            getValue(r, next, thrw, x.strict, prev);
+            getValue(x, r, next, thrw, prev);
         },
         function(r, prev) {
-            getValue(r, ret, thrw, x.strict, prev);
+            getValue(x, r, ret, thrw, prev);
         }, cont, brk, thrw, prev);
 }
 
@@ -817,7 +848,7 @@ executeFunctions[ASSIGN] = function exAssign(n, x, next, ret, cont, brk, thrw, p
         }
         
         if (t) {
-            getValue(r, assign, thrw, x.strict, prev);
+            getValue(x, r, assign, thrw, prev);
         }
         else {
             // in strict mode ensure we are not assigning to a new reference
@@ -975,11 +1006,18 @@ executeFunctions[VOID] = function exVoid(n, x, next, ret, cont, brk, thrw, prev)
 };
 
 executeFunctions[TYPEOF] = function exTypeof(n, x, next, ret, cont, brk, thrw, prev) {
-    execute(n.children[0], x, function(t, prev) {
+     execute(n.children[0], x, function(t, prev) {
             if (t instanceof Reference) {
-                t = t.base ? t.base[t.propertyName] : undefined;
+                if (t.base) {
+                    getValue(x, t, function(v, prev) {next(typeof v, prev);}, thrw, prev);//? t.base[t.propertyName] : undefined;
+                }
+                else {
+                    next("undefined", prev);
+                }
             }
-            next(typeof t, prev);
+            else {
+                next(typeof t, prev);
+            }
         }, ret, cont, brk, thrw, prev);
 };
 
@@ -1008,20 +1046,21 @@ executeFunctions[DECREMENT] = executeFunctions[INCREMENT];
 executeFunctions[DOT] = function exDot(n, x, next, ret, cont, brk, thrw, prev) {
     var c = n.children;
     executeGV(c[0], x, function(t, prev, ref) {
-            var u = c[1].value;
-            //checkObjectCoercible(t, ref, c[0])
-            //var v = new Reference(t, u, n);
-            var v = new Reference(toObjectCheck(t, ref, c[0]), u, n);
-            next(v, prev);
+            var propName = c[1].value;
+            checkObjectCoercible(t, ref, c[0]);
+            var newRef = new Reference(t, propName, n);
+            next(newRef, prev);
         }, ret, cont, brk, thrw, prev);
 };
 
 executeFunctions[INDEX] = function exIndex(n, x, next, ret, cont, brk, thrw, prev) {
     var c = n.children;
     executeGV(c[0], x, function(t, prev, ref) {
-      executeGV(c[1], x, function(u, prev) {
-        next(new Reference(toObjectCheck(t, ref, c[0]), String(u), n), prev);
-      }, ret, cont, brk, thrw, prev);
+        executeGV(c[1], x, function(u, prev) {
+            checkObjectCoercible(t, ref, c[0]);
+            var newRef = new Reference(t, String(u), n);
+            next(newRef, prev);
+        }, ret, cont, brk, thrw, prev);
     }, ret, cont, brk, thrw, prev);
 };
 

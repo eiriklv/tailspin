@@ -148,7 +148,7 @@ functionInternals.set(sandbox.eval, {
         
         var indirectEval = options && options.indirectEval;
         var calledFromStrictCode = indirectEval? false : x.strict;
-        var ast = Parser.parse(a[0], null, null, calledFromStrictCode);
+        var ast = Parser.parse(a[0], null, null, calledFromStrictCode, sandbox);
         
         // create a new execution context for the eval
         var x2 = interpreter.createEvalExecutionContext(calledFromStrictCode);
@@ -215,7 +215,7 @@ functionInternals.set(sandbox.Function, {
 
         // NB: Use the STATEMENT_FORM constant since we don't want to push this
         // function onto the fake compilation context.
-        var f = Parser.parseFunction("anonymous(" + p + ") {" + b + "}", false, Parser.STATEMENT_FORM);
+        var f = Parser.parseFunction("anonymous(" + p + ") {" + b + "}", false, Parser.STATEMENT_FORM, null, null, sandbox);
         
         var x2 = {};
         x2.scope = {object: global, parent: null};
@@ -460,7 +460,7 @@ functionInternals.set(sandbox.Math.random, {
 // Needs reversible support for Object.defineProperty and Object.defineProperties.
 // Note: support for reversible seal and freeze requires lots of work.
 
-// Conversion functions to move native objects into the sandbox.
+// Conversion functions to move native errors into the sandbox.
 var nativeToSandboxErrors = [
     Error, sandbox.Error,
     EvalError, sandbox.EvalError,
@@ -469,10 +469,6 @@ var nativeToSandboxErrors = [
     SyntaxError, sandbox.SyntaxError,
     TypeError, sandbox.TypeError,
     URIError, sandbox.URIError
-];
-var nativeToSandboxClasses = [
-    Number, sandbox.Number,
-    String, sandbox.String
 ];
 
 function sandboxError(e, fileName, lineNumber) {
@@ -486,18 +482,6 @@ function sandboxError(e, fileName, lineNumber) {
         return newError;
     }
     return e;
-}
-function sandboxBaseValue(v) {
-    // RegEx.
-    if (v.constructor === RegExp) {
-        return new sandbox.RegExp(v.source, (v.ignoreCase ? "i" : "") + (v.global ? "g" : "") + (v.multiline ? "m" : ""));
-    }
-    // Number or String.
-    var i = nativeToSandboxClasses.indexOf(v.constructor);
-    if (i>=0 && i%2===0) {
-        return nativeToSandboxClasses[i+1](v);
-    }
-    return v;
 }
 
 function sandboxArray(v) {
@@ -607,14 +591,17 @@ function isObject(v) {
 
 // If r instanceof Reference, v === getValue(r); else v === r.  If passed, rn
 // is the node whose execute result was r.
-// Same as toObject, but throws a type error if v is null or undefined
-function toObjectCheck(v, r, rn, next, thrw) {
+function checkObjectCoercible(v, r, rn) {
     if (v === undefined || v === null) {
-        // fixme: use thrw instead of throw
         var message = "'" + JSON.stringify(v) + "' is not an object (evaluating " +r+")";
         throw (rn ? newTypeError(message, rn.filename, rn.lineno)
             : newTypeError(message));
     }
+}
+
+// Same as toObject, but throws a type error if v is null or undefined
+function toObjectCheck(v, r, rn) {
+    checkObjectCoercible(v, r, rn);
     return toObject(v);
 }
 
@@ -929,12 +916,12 @@ exports.resetEnvironment = resetEnvironment;
 
 exports.sandbox = sandbox;
 exports.sandboxError = sandboxError;
-exports.sandboxBaseValue = sandboxBaseValue;
 exports.sandboxArray = sandboxArray;
 exports.newTypeError = newTypeError;
 exports.newReferenceError = newReferenceError;
 exports.isPrimitive = isPrimitive;
 exports.isObject = isObject;
+exports.checkObjectCoercible = checkObjectCoercible;
 exports.toObjectCheck = toObjectCheck;
 exports.toObject = toObject;
 

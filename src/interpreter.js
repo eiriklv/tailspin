@@ -56,7 +56,6 @@ var sandbox = sandboxExports.sandbox;
 var global = sandboxExports.global;
 var functionInternals = sandboxExports.functionInternals;
 var sandboxError = sandboxExports.sandboxError;
-var sandboxBaseValue = sandboxExports.sandboxBaseValue;
 var sandboxArray = sandboxExports.sandboxArray;
 var newTypeError = sandboxExports.newTypeError;
 var newReferenceError = sandboxExports.newReferenceError;
@@ -65,6 +64,7 @@ var ExecutionContext = sandboxExports.ExecutionContext;
 // Grab useful functions.
 var isPrimitive = sandboxExports.isPrimitive;
 var isObject = sandboxExports.isObject;
+var checkObjectCoercible = sandboxExports.checkObjectCoercible;
 var toObjectCheck = sandboxExports.toObjectCheck;
 var toObject = sandboxExports.toObject;
 var Activation = sandboxExports.Activation;
@@ -148,7 +148,7 @@ function prevDeleteValue(base, key, prev) {
 function getValue(ref, next, thrw, strict, prev) {
     var value;
     if (ref instanceof Reference) {
-        if (!ref.base) {
+        if (ref.base === null || ref.base === undefined) {
             thrw(newReferenceError(ref.propertyName + " is not defined",
                                     ref.node.filename, ref.node.lineno), prev);
             return;
@@ -1009,6 +1009,8 @@ executeFunctions[DOT] = function exDot(n, x, next, ret, cont, brk, thrw, prev) {
     var c = n.children;
     executeGV(c[0], x, function(t, prev, ref) {
             var u = c[1].value;
+            //checkObjectCoercible(t, ref, c[0])
+            //var v = new Reference(t, u, n);
             var v = new Reference(toObjectCheck(t, ref, c[0]), u, n);
             next(v, prev);
         }, ret, cont, brk, thrw, prev);
@@ -1219,7 +1221,7 @@ executeFunctions[IDENTIFIER] = function exIdentifier(n, x, next, ret, cont, brk,
 };
 
 executeFunctions[NUMBER] = function exValue(n, x, next, ret, cont, brk, thrw, prev) {
-    next(sandboxBaseValue(n.value), prev);
+    next(n.value, prev);
 };
 
 executeFunctions[STRING] = executeFunctions[NUMBER];
@@ -1296,7 +1298,7 @@ function evaluateInContext(s, f, l, x, ret, thrw, prev) {
     
     try {
         // Parse the string into an AST.
-        var ast = Parser.parse(s, f, l);
+        var ast = Parser.parse(s, f, l, false, sandbox);
         
         if (ast.hasModules) {
             thrw("Modules unsupported.", prev);

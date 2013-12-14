@@ -49,8 +49,6 @@
  */
 
 
-var nonStrictEval = eval;
-
 var Lexer = (function () {
 "use strict";
 var tk = Definitions.tokenIds;
@@ -121,19 +119,20 @@ function isIdentifier(str) {
 }
 
 /*
- * Tokenizer :: (source, filename, line number, boolean) -> Tokenizer
+ * Tokenizer :: (source, filename, line number, boolean, sandbox) -> Tokenizer
  */
-function Tokenizer(s, f, l, allowHTMLComments) {
+function Tokenizer(source, filename, lineno, allowHTMLComments, sandbox) {
     this.cursor = 0;
-    this.source = String(s);
+    this.source = String(source);
     this.tokens = [];
     this.tokenIndex = 0;
     this.lookahead = 0;
     this.scanNewlines = false;
-    this.filename = f || "";
-    this.lineno = l || 1;
+    this.filename = filename || "";
+    this.lineno = lineno || 1;
     this.allowHTMLComments = allowHTMLComments;
     this.blockComments = null;
+    this.sandbox = sandbox || (new Function("return this"))();
 }
 
 Tokenizer.prototype = {
@@ -290,7 +289,7 @@ Tokenizer.prototype = {
             this.cursor--;
 
             this.lexExponent();
-            token.value = parseFloat(input.substring(token.start, this.cursor));
+            token.value = this.sandbox.parseFloat(input.substring(token.start, this.cursor));
         }
         else if (ch === 'x' || ch === 'X') {
             do {
@@ -303,7 +302,7 @@ Tokenizer.prototype = {
                 throw this.newSyntaxError("At least one digit must occur after 0x");
             }
 
-            token.value = parseInt(input.substring(token.start, this.cursor));
+            token.value = this.sandbox.parseInt(input.substring(token.start, this.cursor));
         }
         else if (ch >= '0' && ch <= '9') {
             if (this.parser.x.strictMode) {
@@ -316,7 +315,7 @@ Tokenizer.prototype = {
             } while (ch >= '0' && ch <= '9');
             this.cursor--;
 
-            token.value = parseInt(input.substring(token.start, this.cursor));
+            token.value = this.sandbox.parseInt(input.substring(token.start, this.cursor));
         }
         else {
             this.cursor--;
@@ -344,7 +343,7 @@ Tokenizer.prototype = {
         floating = floating || exponent;
 
         var str = input.substring(token.start, this.cursor);
-        token.value = floating ? parseFloat(str) : parseInt(str);
+        token.value = floating ? this.sandbox.parseFloat(str) : this.sandbox.parseInt(str);
     },
 
     lexDot: function (ch) {
@@ -359,7 +358,7 @@ Tokenizer.prototype = {
             this.lexExponent();
 
             token.type = tk.NUMBER;
-            token.value = parseFloat(input.substring(token.start, this.cursor));
+            token.value = this.sandbox.parseFloat(input.substring(token.start, this.cursor));
         } else {
             token.type = tk.DOT;
             token.assignOp = null;
@@ -400,17 +399,13 @@ Tokenizer.prototype = {
                 throw this.newSyntaxError("Unterminated string literal");
             }
         }
-
-        if (hasEscapes) {
-            if (this.parser.x.strictMode) {
-                token.value = eval('"use strict"; '+input.substring(token.start, this.cursor));
-            }
-            else {
-                token.value = nonStrictEval(input.substring(token.start, this.cursor));
-            }
+        
+        if (this.parser.x.strictMode) {
+            token.value = this.sandbox.eval('"use strict"; '+input.substring(token.start, this.cursor));
         }
         else {
-            token.value = input.substring(token.start + 1, this.cursor - 1);
+            // Always evaluate the string in the sandbox, to convert the string to a sandbox string.
+            token.value = this.sandbox.eval(input.substring(token.start, this.cursor));
         }
     },
 
@@ -445,7 +440,7 @@ Tokenizer.prototype = {
 
         this.cursor--;
 
-        token.value = eval(input.substring(token.start, this.cursor));
+        token.value = this.sandbox.eval(input.substring(token.start, this.cursor));
     },
 
     lexOp: function (ch) {

@@ -2055,12 +2055,12 @@ Pp.PrimaryExpression = function PrimaryExpression() {
 }
 
 /*
- * parse :: (source, filename, line number) -> node
+ * parse :: (source, filename, line number, boolean, sandbox) -> node
  */
-function parse(s, f, l, strict) {
-    var t = new Tokenizer(s, f, l, options.allowHTMLComments, strict);
-    var p = new Parser(t);
-    return p.Script(false, null, true, strict);
+function parse(source, filename, lineno, strict, sandbox) {
+    var tokenizer = new Tokenizer(source, filename, lineno, options.allowHTMLComments, sandbox);
+    var parser = new Parser(tokenizer);
+    return parser.Script(false, null, true, strict);
 }
 
 /*
@@ -2069,79 +2069,15 @@ function parse(s, f, l, strict) {
  *                   filename, line number)
  *               -> node
  */
-function parseFunction(s, requireName, form, f, l) {
-    var t = new Tokenizer(s, f, l);
+function parseFunction(source, requireName, form, filename, lineno, sandbox) {
+    var t = new Tokenizer(source, filename, lineno, options.allowHTMLComments, sandbox);
     var p = new Parser(t);
     p.x = new StaticContext(null, null, false, null, false);
     return p.FunctionDefinition(requireName, form);
 }
 
-/*
- * parseStdin :: (source, {line number}, string, (string) -> boolean) -> program node
- */
-function parseStdin(s, ln, prefix, isCommand) {
-    // the special .begin command is only recognized at the beginning
-    if (s.match(/^[\s]*\.begin[\s]*$/)) {
-        ++ln.value;
-        return parseMultiline(ln, prefix);
-    }
-
-    // commands at the beginning are treated as the entire input
-    if (isCommand(s.trim()))
-        s = "";
-
-    for (;;) {
-        try {
-            var t = new Tokenizer(s, "stdin", ln.value, false);
-            var p = new Parser(t);
-            var n = p.Script(false, null);
-            ln.value = t.lineno;
-            return n;
-        } catch (e) {
-            if (!p.unexpectedEOF)
-                throw e;
-
-            // commands in the middle are not treated as part of the input
-            var more;
-            do {
-                if (prefix)
-                    putstr(prefix);
-                more = readline();
-                if (!more)
-                    throw e;
-            } while (isCommand(more.trim()));
-
-            s += "\n" + more;
-        }
-    }
-}
-
-/*
- * parseMultiline :: ({line number}, string | null) -> program node
- */
-function parseMultiline(ln, prefix) {
-    var s = "";
-    for (;;) {
-        if (prefix)
-            putstr(prefix);
-        var more = readline();
-        if (more === null)
-            return null;
-        // the only command recognized in multiline mode is .end
-        if (more.match(/^[\s]*\.end[\s]*$/))
-            break;
-        s += "\n" + more;
-    }
-    var t = new Tokenizer(s, "stdin", ln.value, false);
-    var p = new Parser(t);
-    var n = p.Script(false, null);
-    ln.value = t.lineno;
-    return n;
-}
-
 var exports = {};
 exports.parse = parse;
-exports.parseStdin = parseStdin;
 exports.parseFunction = parseFunction;
 exports.Node = Node;
 exports.DECLARED_FORM = DECLARED_FORM;

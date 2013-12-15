@@ -163,7 +163,13 @@ function getValue(x, ref, next, thrw, prev) {
                                     ref.node.filename, ref.node.lineno), prev);
             return;
         }
+        // Workaround for not defining 'caller' on 'arguments.callee.caller'.
+        else if (typeof ref.base === "function" && ref.propertyName === "caller") {
+            ref.base.caller; // Access it just to make sure we can.
+            next(undefined, prev, ref); // Then return 'undefined' as the value.
+        }
         else {
+            // Access property descriptor and get the value for the reference.
             var base = toObject(ref.base);
             var propDesc = getPropertyDescriptor(base, ref.propertyName);
             

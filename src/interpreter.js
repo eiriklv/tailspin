@@ -207,7 +207,7 @@ function putValue(x, ref, value, refNode, strict, next, thrw, prev) {
         
         if (propDesc && propDesc.set) {
             // Handle setter properties by calling function.
-            callFunction(propDesc.set, ref.base, [], x, next, null, null, null, thrw, prev);
+            callFunction(propDesc.set, ref.base, [value], x, next, null, null, null, thrw, prev);
         }
         else {
             var newPrev = prevSaveValue(base, ref.propertyName, prev);

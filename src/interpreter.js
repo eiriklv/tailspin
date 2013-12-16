@@ -29,7 +29,8 @@
 
 
 // Outer non-strict code.
-(function () {
+
+Interpreter = function () {
 
 // Set constants in the local scope.
 eval(Definitions.consts);
@@ -44,7 +45,7 @@ function nonStrictDeleteValue(base, name) {
     return delete base[name];
 }
 
-Interpreter = function () {
+return (function () {
 "use strict";
 
 var GLOBAL_CODE = 0, EVAL_CODE = 1, FUNCTION_CODE = 2;
@@ -207,7 +208,7 @@ function putValue(x, ref, value, refNode, strict, next, thrw, prev) {
         
         if (propDesc && propDesc.set) {
             // Handle setter properties by calling function.
-            callFunction(propDesc.set, ref.base, [value], x, next, null, null, null, thrw, prev);
+            callFunction(propDesc.set, base, [value], x, next, null, null, null, thrw, prev);
         }
         else {
             var newPrev = prevSaveValue(base, ref.propertyName, prev);
@@ -1387,5 +1388,5 @@ exports.createEvalExecutionContext = createEvalExecutionContext;
 exports.createFunctionExecutionContext = createFunctionExecutionContext;
 
 return exports;
-};
 })();
+};

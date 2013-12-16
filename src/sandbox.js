@@ -226,10 +226,12 @@ functionInternals.set(sandbox.Function, {
 
 // Sandboxed functions provide alternative toString functions.
 var oldToStr = sandbox.Function.prototype.toString;
-Object.defineProperty(sandbox.Function.prototype, "toString", {value:function() {
+var newToStr = function() {
     var fint = functionInternals.get(this);
     return fint? fint.toString() : oldToStr.call(this);
-}, enumerable:false, writable:true});
+};
+newToStr.prototype = undefined;
+Object.defineProperty(sandbox.Function.prototype, "toString", {value:newToStr, enumerable:false, writable:true});
 
 functionInternals.set(sandbox.Function.prototype.call, {
     call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {

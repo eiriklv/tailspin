@@ -39,18 +39,18 @@ var sandbox;
 
 var sandboxFns = 'nativeBase = (new Function("return this"))();\n\
 \n\
-// Creates a function in the sandbox using Function.apply(fnArgs).\n\
-// the function will reference continuationMarker, fint and x.\n\
-newFnFunction = function(continuationMarker, fint, x, fnArgs) {\n\
+// Creates a function in the sandbox from the string fnStr.\n\
+// fnStr will reference continuationMarker, fint and x.\n\
+newFnFunction = function(continuationMarker, fint, x, fnStr) {\n\
     var newFn;\n\
     if (fint.node.body.strict) {\n\
         (function() {\n\
             "use strict"\n\
-            newFn = Function.apply(fnArgs);\n\
+            newFn = eval(fnStr);\n\
         })();\n\
     }\n\
     else {\n\
-        newFn = Function.apply(fnArgs);\n\
+        newFn = eval(fnStr);\n\
     }\n\
     return newFn;\n\
 };\n\
@@ -634,22 +634,23 @@ function newFunction(n, x) {
     var fint = new FunctionInternals(n, x.scope);
     
     // ugly method of creating a function with the correct # of arguments
-    var fnArgs = [];
-    for (var i=0; i<fint.length; i++) {
-        fnArgs.push("a"+i);
+    var args = fint.length>0? "a0" : "";
+    for (var i=1; i<fint.length; i++) {
+        args += ",a"+i;
     }
         
     // do nothing if we detect special calling pattern: args===[continuationMarker]
     // when called like this the caller is responsible for calling fint.call()
     // if 'this' is the native global object (ie. DOMWindow) then we want to use our own global object
-    fnArgs.push("if (arguments[arguments.length-1] !== continuationMarker) {\n\
+    var fnStr = "(function("+args+"){\n\
+        if (arguments[arguments.length-1] !== continuationMarker) {\n\
             var t = (this === nativeBase? undefined : this);\n\
             return fint.call(newFn, t, arguments, x);\n\
-        }");
+        }})";
     
     // Pass the important values through to the sandbox.
     // Creating the new function in the sandbox.
-    var newFn = sandbox.newFnFunction(continuationMarker, fint, x, fnArgs);
+    var newFn = sandbox.newFnFunction(continuationMarker, fint, x, fnStr);
     functionInternals.set(newFn, fint);
     
     return newFn;
@@ -732,7 +733,7 @@ function Activation(f, a, callee) {
           });
         var args = safeParams.join(", ");
         var accessors = safeParams.map(function(name) {
-            return "{get:function(){return "+name+";}, set:function(v){return "+name+" = v;}, configurable:false}";
+            return "{get:function(){return "+name+";}, set:function(v){"+name+" = v;}, configurable:false}";
           }).join(", ");
         
         var fnStr = "(function("+args+"){\n"+

@@ -12,6 +12,7 @@
 
 
 var Sandbox = function (interpreter) {
+"use strict";
 
 var hasDirectProperty = Definitions.hasDirectProperty;
 
@@ -80,7 +81,6 @@ if (typeof document === "object") {
     
     nativeBase = (new Function("return this"))();
     sandbox = iframe.contentWindow;
-    applyNew = Definitions.applyNew;
 }
 else {
     // Having the sandbox the same as the Tailspin's host is less ideal
@@ -680,7 +680,7 @@ function constructFunction(fn, args, x, next, ret, cont, brk, thrw, prev) {
         // Calling out to native function.
         // Catch native exception and convert into interpreter exception.
         try {
-            var newFn = applyNew(fn, args);
+            var newFn = sandbox.applyNew(fn, args);
             next(newFn, prev);
         }
         catch (e) {
@@ -733,7 +733,7 @@ function Activation(f, a, callee) {
           });
         var args = safeParams.join(", ");
         var accessors = safeParams.map(function(name) {
-            return "{get:function(){return "+name+";}, set:function(v){"+name+" = v;}, configurable:false}";
+            return "{get:function(){return "+name+";}, set:function(v){return "+name+" = v;}, configurable:false}";
           }).join(", ");
         
         var fnStr = "(function("+args+"){\n"+

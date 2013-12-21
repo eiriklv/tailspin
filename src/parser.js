@@ -49,7 +49,15 @@
  * Parser.
  */
 
-var Parser = (function () {
+// Outer non-strict code.
+(function () {
+
+// Set constants in the local scope.
+eval(Definitions.consts);
+
+Parser = (function () {
+"use strict";
+
 var options = {
     // Allow HTML comments?
     allowHTMLComments: false,
@@ -60,11 +68,9 @@ var options = {
 };
 var Tokenizer = Lexer.Tokenizer;
 
-const Dict = Definitions.Dict;
-const Stack = Definitions.Stack;
+var Dict = Definitions.Dict;
+var Stack = Definitions.Stack;
 
-// Set constants in the local scope.
-eval(Definitions.consts);
 
 /*
  * pushDestructuringVarDecls :: (node, hoisting node) -> void
@@ -286,7 +292,7 @@ function SyntheticNode(init) {
 var Np = Node.prototype = SyntheticNode.prototype = {};
 Np.constructor = Node;
 
-const TO_SOURCE_SKIP = {
+var TO_SOURCE_SKIP = {
     type: true,
     value: true,
     lineno: true,
@@ -359,7 +365,7 @@ Np.toString = function () {
             a.push({id: i, value: this[i]});
     }
     a.sort(function (a,b) { return (a.id < b.id) ? -1 : 1; });
-    const INDENTATION = "    ";
+    var INDENTATION = "    ";
     var n = ++Node.indentLevel;
     var s = "{\n" + INDENTATION.repeat(n) + "type: " + tokenString(this.type);
     for (i = 0; i < a.length; i++)
@@ -382,7 +388,7 @@ Np.synth = function(init) {
  * Helper init objects for common nodes.
  */
 
-const LOOP_INIT = { isLoop: true };
+var LOOP_INIT = { isLoop: true };
 
 function blockInit() {
     return { type: BLOCK, varDecls: [] };
@@ -482,7 +488,7 @@ Pp.Block = function Block() {
     return n;
 }
 
-const DECLARED_FORM = 0, EXPRESSED_FORM = 1, STATEMENT_FORM = 2;
+var DECLARED_FORM = 0, EXPRESSED_FORM = 1, STATEMENT_FORM = 2;
 
 /*
  * Export :: (binding node, boolean) -> Export
@@ -2089,4 +2095,5 @@ exports.Module = Module;
 exports.Export = Export;
 
 return exports;
+})();
 })();

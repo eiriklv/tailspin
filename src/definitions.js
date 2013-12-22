@@ -49,7 +49,18 @@
  * separately to take advantage of the simple switch-case constant propagation
  * done by SpiderMonkey.
  */
+
+var hostSupportsEvalConst = (function() {
+    try {
+        return eval("(function(s) { eval(s); return x })('const x = true;')");
+    } catch (e) {
+        return false;
+    }
+})();
+
 var Definitions = (function () {
+"use strict";
+
 var tokens = [
     // End of source.
     "END",
@@ -216,14 +227,6 @@ var mozillaKeywords = {__proto__: null};
 
 // Define const END, etc., based on the token names.  Also map name to index.
 var tokenIds = {};
-
-var hostSupportsEvalConst = (function() {
-    try {
-        return eval("(function(s) { eval(s); return x })('const x = true;')");
-    } catch (e) {
-        return false;
-    }
-})();
 
 // Building up a string to be eval'd in different contexts.
 var consts = hostSupportsEvalConst ? "const " : "var ";

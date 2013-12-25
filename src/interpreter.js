@@ -30,10 +30,10 @@
 
 // Outer non-strict code.
 
-Interpreter = function () {
+Tailspin.Interpreter = function () {
 
 // Set constants in the local scope.
-eval(Definitions.consts);
+eval(Tailspin.Definitions.consts);
 
 function nonStrictGetValue(base, name) {
     return base[name];
@@ -52,7 +52,7 @@ var GLOBAL_CODE = 0, EVAL_CODE = 1, FUNCTION_CODE = 2;
 
 // Create a new sandbox.
 var exports = {};
-var sandboxExports = new Sandbox(exports);
+var sandboxExports = new Tailspin.Sandbox(exports);
 var sandbox = sandboxExports.sandbox;
 var global = sandboxExports.global;
 var functionInternals = sandboxExports.functionInternals;
@@ -74,7 +74,7 @@ var hasInstance = sandboxExports.hasInstance;
 var constructFunction = sandboxExports.constructFunction;
 var callFunction = sandboxExports.callFunction;
 
-var hasDirectProperty = Definitions.hasDirectProperty;
+var hasDirectProperty = Tailspin.Definitions.hasDirectProperty;
 
 
 function Reference(base, propertyName, node) {
@@ -84,7 +84,7 @@ function Reference(base, propertyName, node) {
 }
 
 Reference.prototype.toString = function () {
-    return Decompiler.pp(this.node);
+    return Tailspin.Decompiler.pp(this.node);
 };
 
 // returns true if reference exists
@@ -278,10 +278,10 @@ executeFunctions[FUNCTION] = function exFunction(n, x, next, ret, cont, brk, thr
     var newFn;
     
     // Define this function in its own scope.
-    if (n.functionForm !== Parser.DECLARED_FORM) {
-        if (!n.name || n.functionForm === Parser.STATEMENT_FORM) {
+    if (n.functionForm !== Tailspin.Parser.DECLARED_FORM) {
+        if (!n.name || n.functionForm === Tailspin.Parser.STATEMENT_FORM) {
             newFn = newFunction(n, x);
-            if (n.functionForm === Parser.STATEMENT_FORM) {
+            if (n.functionForm === Tailspin.Parser.STATEMENT_FORM) {
                 Definitions.defineProperty(x.scope.object, n.name, newFn, true);
             }
         }
@@ -1344,7 +1344,7 @@ function evaluateInContext(s, f, l, x, ret, thrw, prev) {
     
     try {
         // Parse the string into an AST.
-        var ast = Parser.parse(s, f, l, false, sandbox);
+        var ast = Tailspin.Parser.parse(s, f, l, false, sandbox);
         
         if (ast.hasModules) {
             thrw("Modules unsupported.", prev);

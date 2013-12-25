@@ -53,9 +53,9 @@
 (function () {
 
 // Set constants in the local scope.
-eval(Definitions.consts);
+eval(Tailspin.Definitions.consts);
 
-Parser = (function () {
+Tailspin.Parser = (function () {
 "use strict";
 
 var options = {
@@ -66,8 +66,9 @@ var options = {
     // Allow experimental paren-free mode?
     parenFreeMode: false
 };
-var Tokenizer = Lexer.Tokenizer;
+var Tokenizer = Tailspin.Lexer.Tokenizer;
 
+var Definitions = Tailspin.Definitions;
 var Dict = Definitions.Dict;
 var Stack = Definitions.Stack;
 

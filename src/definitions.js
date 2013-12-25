@@ -50,6 +50,8 @@
  * done by SpiderMonkey.
  */
 
+var Tailspin = {};
+
 var hostSupportsEvalConst = (function() {
     try {
         return eval("(function(s) { eval(s); return x })('const x = true;')");
@@ -58,7 +60,7 @@ var hostSupportsEvalConst = (function() {
     }
 })();
 
-var Definitions = (function () {
+Tailspin.Definitions = (function () {
 "use strict";
 
 var tokens = [

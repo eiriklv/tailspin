@@ -11,10 +11,10 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 
-var Sandbox = function (interpreter) {
+Tailspin.Sandbox = function (interpreter) {
 "use strict";
 
-var hasDirectProperty = Definitions.hasDirectProperty;
+var hasDirectProperty = Tailspin.Definitions.hasDirectProperty;
 
 // Functions are created as a native javascript function, and an associated internal implementation.
 // When a function is called from Tailspin, the internal version is used with the correct
@@ -148,7 +148,7 @@ functionInternals.set(sandbox.eval, {
         
         var indirectEval = options && options.indirectEval;
         var calledFromStrictCode = indirectEval? false : x.strict;
-        var ast = Parser.parse(a[0], null, null, calledFromStrictCode, sandbox);
+        var ast = Tailspin.Parser.parse(a[0], null, null, calledFromStrictCode, sandbox);
         
         // create a new execution context for the eval
         var x2 = interpreter.createEvalExecutionContext(calledFromStrictCode);
@@ -215,7 +215,7 @@ functionInternals.set(sandbox.Function, {
 
         // NB: Use the STATEMENT_FORM constant since we don't want to push this
         // function onto the fake compilation context.
-        var f = Parser.parseFunction("anonymous(" + p + ") {" + b + "}", false, Parser.STATEMENT_FORM, null, null, sandbox);
+        var f = Tailspin.Parser.parseFunction("anonymous(" + p + ") {" + b + "}", false, Tailspin.Parser.STATEMENT_FORM, null, null, sandbox);
         
         var x2 = {};
         x2.scope = {object: global, parent: null};

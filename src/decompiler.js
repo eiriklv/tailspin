@@ -49,12 +49,12 @@
 (function () {
 
 // Set constants in the local scope.
-eval(Definitions.consts);
+eval(Tailspin.Definitions.consts);
 
-Decompiler = (function () {
+Tailspin.Decompiler = (function () {
 "use strict";
 
-var tokens = Definitions.tokens;
+var tokens = Tailspin.Definitions.tokens;
 
 function indent(n, s) {
     var ss = "", d = true;

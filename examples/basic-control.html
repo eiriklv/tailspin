@@ -16,15 +16,15 @@
     <link rel="stylesheet" href="lib/codemirror.css">
     
     <script type="text/javascript">
-        var tailspin;
+        var interpreter;
         var mySource, myConsole;
         
         function setup() {
             // Create a new interpreter.
-            tailspin = new Interpreter();
+            interpreter = new Tailspin.Interpreter();
             
             // Add a single global 'console' that has a log function.
-            tailspin.global.console = {
+            interpreter.global.console = {
                 log:function(msg) {consoleLog(msg, 'log');}
             };
             
@@ -62,7 +62,7 @@
             }
             
             // Create an evaluation context that describes the how the code is to be executed.
-            var x = tailspin.createExecutionContext();
+            var x = interpreter.createExecutionContext();
             
             // Asynchronous running is prefered, so that tailspin execution does not block the browser.
             x.asynchronous = true;
@@ -73,7 +73,7 @@
                 if (typeof n.value === "string" || typeof n.value === "number") {
                     value = " '" + n.value + "'";
                 }
-                consoleLog(n.lineno + ": " + Definitions.tokens[n.type] + value);
+                consoleLog(n.lineno + ": " + Tailspin.Definitions.tokens[n.type] + value);
                 
                 // Continue execution.
                 next(prev);
@@ -81,7 +81,7 @@
             
             // Run the code.
             var source = mySource.getValue();
-            tailspin.evaluateInContext(source, "source", 0, x, returnFn, errorFn, null);
+            interpreter.evaluateInContext(source, "source", 0, x, returnFn, errorFn, null);
         }
     </script>
 </head>

@@ -49,8 +49,9 @@
  */
 
 
-var Lexer = (function () {
+Tailspin.Lexer = (function () {
 "use strict";
+var Definitions = Tailspin.Definitions;
 var tk = Definitions.tokenIds;
 
 // Build up a trie of operator tokens.

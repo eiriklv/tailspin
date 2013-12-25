@@ -368,11 +368,11 @@ Np.toString = function () {
     a.sort(function (a,b) { return (a.id < b.id) ? -1 : 1; });
     var INDENTATION = "    ";
     var n = ++Node.indentLevel;
-    var s = "{\n" + INDENTATION.repeat(n) + "type: " + tokenString(this.type);
+    var s = "{\n" + repeatString(INDENTATION, n) + "type: " + tokenString(this.type);
     for (i = 0; i < a.length; i++)
-        s += ",\n" + INDENTATION.repeat(n) + a[i].id + ": " + a[i].value;
+        s += ",\n" + repeatString(INDENTATION, n) + a[i].id + ": " + a[i].value;
     n = --Node.indentLevel;
-    s += "\n" + INDENTATION.repeat(n) + "}";
+    s += "\n" + repeatString(INDENTATION, n) + "}";
     return s;
 }
 
@@ -411,19 +411,13 @@ function scriptInit() {
              hasYield: false };
 }
 
-/*definitions.__defineGetter__(Np, "length",
-                         function() {
-                             throw new Error("Node.prototype.length is gone; " +
-                                             "use n.children.length instead");
-                         });*/
-
-Definitions.defineProperty(String.prototype, "repeat",
-                           function(n) {
-                               var s = "", t = this + s;
-                               while (--n >= 0)
-                                   s += t;
-                               return s;
-                           }, false, false, true);
+function repeatString(str, n) {
+   var s = "", t = str + s;
+   while (--n >= 0) {
+       s += t;
+   }
+   return s;
+}
 
 Pp.MaybeLeftParen = function MaybeLeftParen() {
     if (this.parenFreeMode)

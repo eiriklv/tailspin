@@ -48,6 +48,7 @@ function nonStrictDeleteValue(base, name) {
 return (function () {
 "use strict";
 
+var Definitions = Tailspin.Definitions;
 var GLOBAL_CODE = 0, EVAL_CODE = 1, FUNCTION_CODE = 2;
 
 // Create a new sandbox.
@@ -74,7 +75,7 @@ var hasInstance = sandboxExports.hasInstance;
 var constructFunction = sandboxExports.constructFunction;
 var callFunction = sandboxExports.callFunction;
 
-var hasDirectProperty = Tailspin.Definitions.hasDirectProperty;
+var hasDirectProperty = Definitions.hasDirectProperty;
 
 
 function Reference(base, propertyName, node) {

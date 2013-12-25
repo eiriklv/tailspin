@@ -854,7 +854,7 @@ var FIp = FunctionInternals.prototype = {
     toString: function() {
         var parenthesized = this.node.parenthesized;
         this.node.parenthesized = false;
-        var result = Decompiler.pp(this.node);
+        var result = Tailspin.Decompiler.pp(this.node);
         this.node.parenthesized = parenthesized;
         return result;
     }

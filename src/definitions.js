@@ -255,8 +255,9 @@ for (var i = 0, j = tokens.length; i < j; i++) {
 consts += ";";
 
 var isStatementStartCode = {__proto__: null};
-for (i = 0, j = statementStartTokens.length; i < j; i++)
+for (i = 0, j = statementStartTokens.length; i < j; i++) {
     isStatementStartCode[keywords[statementStartTokens[i]]] = true;
+}
 
 // Map assignment operators to their indexes in the tokens array.
 var assignOps = ['|', '^', '&', '<<', '>>', '>>>', '+', '-', '*', '/', '%'];
@@ -272,43 +273,12 @@ function defineProperty(obj, prop, val, dontDelete, readOnly, dontEnum) {
                             enumerable: !dontEnum });
 }
 
-// Returns true if fn is a native function.  (Note: SpiderMonkey specific.)
-function isNativeCode(fn) {
-    // Relies on the toString method to identify native code.
-    return ((typeof fn) === "function") && fn.toString().match(/\[native code\]/);
-}
-
-var Fpapply = Function.prototype.apply;
-
 function apply(f, o, a) {
-    return Fpapply.call(f, [o].concat(a));
+    return Function.prototype.apply.call(f, [o].concat(a));
 }
 
-var applyNew;
-
-// ES5's bind is a simpler way to implement applyNew
-if (Function.prototype.bind) {
-    applyNew = function applyNew(f, a) {
-        return new (f.bind.apply(f, [,].concat(Array.prototype.slice.call(a))))();
-    };
-} else {
-    applyNew = function applyNew(f, a) {
-        switch (a.length) {
-          case 0:
-            return new f();
-          case 1:
-            return new f(a[0]);
-          case 2:
-            return new f(a[0], a[1]);
-          case 3:
-            return new f(a[0], a[1], a[2]);
-          default:
-            var argStr = "a[0]";
-            for (var i = 1, n = a.length; i < n; i++)
-                argStr += ",a[" + i + "]";
-            return eval("new f(" + argStr + ")");
-        }
-    };
+function applyNew(f, a) {
+    return new (f.bind.apply(f, [,].concat(Array.prototype.slice.call(a))))();
 }
 
 // Helper to avoid Object.prototype.hasOwnProperty polluting scope objects.
@@ -431,23 +401,6 @@ Stack.prototype = {
     }
 };
 
-if (!Array.prototype.copy) {
-    defineProperty(Array.prototype, "copy",
-                   function() {
-                       var result = [];
-                       for (var i = 0, n = this.length; i < n; i++)
-                           result[i] = this[i];
-                       return result;
-                   }, false, false, true);
-}
-
-if (!Array.prototype.top) {
-    defineProperty(Array.prototype, "top",
-                   function() {
-                       return this.length && this[this.length-1];
-                   }, false, false, true);
-}
-
 var exports = {};
 exports.tokens = tokens;
 exports.whitespace = whitespace;
@@ -463,7 +416,6 @@ exports.consts = consts;
 exports.assignOps = assignOps;
 exports.defineProperty = defineProperty;
 exports.hasDirectProperty = hasDirectProperty;
-exports.isNativeCode = isNativeCode;
 exports.apply = apply;
 exports.applyNew = applyNew;
 exports.Dict = Dict;

@@ -229,7 +229,7 @@ function BrowserRunner() {
         "fnSupportsArrayIndexGettersOnArrays"];
         
         idoc.writeln("document.addEventListener('DOMContentLoaded', function () {");
-        idoc.writeln("interpreter = new Interpreter();");
+        idoc.writeln("interpreter = new Tailspin.Interpreter();");
         
         for(var i=0,c=globals.length;i<c;i++) {
             idoc.writeln("interpreter.global."+globals[i]+" = "+globals[i]+";");

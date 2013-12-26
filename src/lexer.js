@@ -57,15 +57,17 @@ var tk = Definitions.tokenIds;
 // Build up a trie of operator tokens.
 var opTokens = {};
 for (var op in Definitions.opTypeNames) {
-    if (Object.prototype.hasOwnProperty.call(Definitions.opTypeNames, op)) {
-        if (op === '\n' || op === '.')
+    if (Definitions.opTypeNames.hasOwnProperty(op)) {
+        if (op === '\n' || op === '.') {
             continue;
-    
+        }
+        
         var node = opTokens;
         for (var i = 0; i < op.length; i++) {
             var ch = op[i];
-            if (!(ch in node))
+            if (!node.hasOwnProperty(ch)) {
                 node[ch] = {};
+            }
             node = node[ch];
             node.op = op;
         }
@@ -246,7 +248,7 @@ Tokenizer.prototype = {
                         break;
                     }
                 }
-            } else if (!(ch in Definitions.whitespace)) {
+            } else if (!(Definitions.whitespace.hasOwnProperty(ch))) {
                 this.cursor--;
                 return;
             }
@@ -451,11 +453,11 @@ Tokenizer.prototype = {
         // for only 3 characters...
         var node = opTokens[ch];
         var next = input[this.cursor];
-        if (next in node) {
+        if (node.hasOwnProperty(next)) {
             node = node[next];
             this.cursor++;
             next = input[this.cursor];
-            if (next in node) {
+            if (node.hasOwnProperty(next)) {
                 node = node[next];
                 this.cursor++;
                 next = input[this.cursor];
@@ -533,7 +535,7 @@ Tokenizer.prototype = {
             this.tokenIndex = newTokenIndex;
             
             if (token.type !== tk.NEWLINE || this.scanNewlines) {
-                if (keywordIsName && token.value in Definitions.keywords) {
+                if (keywordIsName && Definitions.keywords.hasOwnProperty(token.value)) {
                     return tk.IDENTIFIER;
                 }
                 return token.type;
@@ -563,7 +565,7 @@ Tokenizer.prototype = {
             this.lexIdent(ich, keywordIsName);
         } else if (scanOperand && ch === '/') {
             this.lexRegExp(ch);
-        } else if (ch in opTokens) {
+        } else if (opTokens.hasOwnProperty(ch)) {
             this.lexOp(ch);
         } else if (ch === '.') {
             this.lexDot(ch);
@@ -573,7 +575,7 @@ Tokenizer.prototype = {
             this.lexZeroNumber(ch);
         } else if (ch === '"' || ch === "'") {
             this.lexString(ch);
-        } else if (this.scanNewlines && Definitions.newlines[ch]) {
+        } else if (this.scanNewlines && Definitions.newlines.hasOwnProperty(ch)) {
             // if this was a \r, look for \r\n
             if (ch === '\r' && input[this.cursor] === '\n') this.cursor++;
             token.type = tk.NEWLINE;

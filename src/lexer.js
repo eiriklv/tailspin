@@ -488,30 +488,26 @@ Tokenizer.prototype = {
         token.type = tk.IDENTIFIER;
         token.value = id;
 
-        if (keywordIsName)
+        if (keywordIsName) {
             return;
-
-        var kw;
+        }
 
         if (this.parser.mozillaMode) {
-            kw = Definitions.mozillaKeywords[id];
-            if (kw) {
-                token.type = kw;
+            if (Definitions.mozillaKeywords.hasOwnProperty(id)) {
+                token.type = Definitions.mozillaKeywords[id];
                 return;
             }
         }
 
         if (this.parser.x.strictMode) {
-            kw = Definitions.strictKeywords[id];
-            if (kw) {
-                token.type = kw;
+            if (Definitions.strictKeywords.hasOwnProperty(id)) {
+                token.type = Definitions.strictKeywords[id];
                 return;
             }
         }
 
-        kw = Definitions.keywords[id];
-        if (kw) {
-            token.type = kw;
+        if (Definitions.keywords.hasOwnProperty(id)) {
+            token.type = Definitions.keywords[id];
         }
     },
 

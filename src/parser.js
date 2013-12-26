@@ -306,7 +306,7 @@ function unevalableConst(code) {
     var token = Definitions.tokens[code];
     var constName = Definitions.opTypeNames.hasOwnProperty(token)
         ? Definitions.opTypeNames[token]
-        : token in Definitions.keywords
+        : Definitions.keywords.hasOwnProperty(token)
         ? token.toUpperCase()
         : token;
     return { toSource: function() { return constName } };
@@ -758,7 +758,7 @@ Pp.Statement = function Statement() {
                 this.mustMatch(SEMICOLON);
                 tt2 = this.peek(true);
                 n.update = (this.parenFreeMode
-                            ? tt2 === LEFT_CURLY || Definitions.isStatementStartCode[tt2]
+                            ? tt2 === LEFT_CURLY || Definitions.isStatementStartCode.hasOwnProperty(tt2)
                             : tt2 === RIGHT_PAREN)
                     ? null
                     : this.Expression();
@@ -1541,7 +1541,7 @@ Pp.HeadExpression = function HeadExpression() {
     this.MaybeRightParen(p);
     if (p === END && !n.parenthesized) {
         var tt = this.peek();
-        if (tt !== LEFT_CURLY && !Definitions.isStatementStartCode[tt])
+        if (tt !== LEFT_CURLY && !Definitions.isStatementStartCode.hasOwnProperty(tt))
             this.fail("Unparenthesized head followed by unbraced body");
     }
     return n;
@@ -1994,7 +1994,7 @@ Pp.PrimaryExpression = function PrimaryExpression() {
                       case RIGHT_CURLY:
                         break object_init;
                       default:
-                        if (this.t.token.value in Definitions.keywords) {
+                        if (Definitions.keywords.hasOwnProperty(this.t.token.value)) {
                             id = this.newNode({ type: IDENTIFIER });
                             break;
                         }

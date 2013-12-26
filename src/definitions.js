@@ -52,14 +52,6 @@
 
 var Tailspin = {};
 
-var hostSupportsEvalConst = (function() {
-    try {
-        return eval("(function(s) { eval(s); return x })('const x = true;')");
-    } catch (e) {
-        return false;
-    }
-})();
-
 Tailspin.Definitions = (function () {
 "use strict";
 
@@ -121,7 +113,6 @@ var tokens = [
 ];
 
 var strictKeywords = {
-    __proto__: null,
     "implements": true,
     "interface": true,
     "let": true,
@@ -221,40 +212,45 @@ var opTypeNames = {
     ')':    "RIGHT_PAREN"
 };
 
-// Hash of keyword identifier to tokens index.  NB: we must null __proto__ to
-// avoid toString, etc. namespace pollution.
-var keywords = {__proto__: null};
+// Hash of keyword identifier to tokens index.
+var keywords = {};
 var isKeyword = [];
-var mozillaKeywords = {__proto__: null};
+var mozillaKeywords = {};
 
 // Define const END, etc., based on the token names.  Also map name to index.
 var tokenIds = {};
 
 // Building up a string to be eval'd in different contexts.
-var consts = hostSupportsEvalConst ? "const " : "var ";
+var consts = "var ";
 for (var i = 0, j = tokens.length; i < j; i++) {
-    if (i > 0)
+    if (i > 0) {
         consts += ", ";
+    }
+    
     var t = tokens[i];
     var name;
     if (/^[a-z]/.test(t)) {
         name = t.toUpperCase();
-        if (name === "LET" || name === "YIELD")
+        if (name === "LET" || name === "YIELD") {
             mozillaKeywords[name] = i;
-        if (strictKeywords[name])
+        }
+        if (strictKeywords.hasOwnProperty(name)) {
             strictKeywords[name] = i;
+        }
         keywords[t] = i;
         isKeyword[i] = true;
-    } else {
+    }
+    else {
         name = (/^\W/.test(t) ? opTypeNames[t] : t);
     }
+    
     consts += name + " = " + i;
     tokenIds[name] = i;
     tokens[t] = i;
 }
 consts += ";";
 
-var isStatementStartCode = {__proto__: null};
+var isStatementStartCode = {};
 for (i = 0, j = statementStartTokens.length; i < j; i++) {
     isStatementStartCode[keywords[statementStartTokens[i]]] = true;
 }

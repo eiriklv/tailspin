@@ -283,7 +283,8 @@ executeFunctions[FUNCTION] = function exFunction(n, x, next, ret, cont, brk, thr
         if (!n.name || n.functionForm === Tailspin.Parser.STATEMENT_FORM) {
             newFn = newFunction(n, x);
             if (n.functionForm === Tailspin.Parser.STATEMENT_FORM) {
-                Definitions.defineProperty(x.scope.object, n.name, newFn, true);
+                Object.defineProperty(x.scope.object, n.name,
+                    {value:newFn, writable:true, configurable:false, enumerable:true});
             }
         }
         else {
@@ -291,7 +292,8 @@ executeFunctions[FUNCTION] = function exFunction(n, x, next, ret, cont, brk, thr
             x.scope = {object: t, parent: x.scope};
             try {
                 newFn = newFunction(n, x);
-                Definitions.defineProperty(t, n.name, newFn, true, true);
+                Object.defineProperty(t, n.name,
+                    {value:newFn, writable:false, configurable:false, enumerable:true});
             }
             finally {
                 x.scope = x.scope.parent;
@@ -706,7 +708,8 @@ executeFunctions[TRY] = function exTry(n, x, next, ret, cont, brk, thrw, prev) {
         if (n.catchClauses.length === 1) {
             var t = n.catchClauses[0];
             x.scope = {object: new Activation(), parent: x.scope};
-            Definitions.defineProperty(x.scope.object, t.varName, e, true);
+            Object.defineProperty(x.scope.object, t.varName,
+                {value:e, writable:true, configurable:false, enumerable:true});
             
             execute(t.block, x, function(ignored, prev) {
                     x.scope = x.scope.parent;
@@ -1149,7 +1152,8 @@ executeFunctions[NEW] = function exNew(n, x, next, ret, cont, brk, thrw, prev) {
         
         if (n.type === NEW) {// fixme: what is this???
             var a = new sandbox.Object();
-            Definitions.defineProperty(a, "length", 0, false, false, true);
+            Object.defineProperty(a, "length",
+                {value:0, writable:true, configurable:true, enumerable:false});
             constructFn(a, prev);
         } else {
             // Execute the arguments then call constructFn.

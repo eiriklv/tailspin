@@ -267,12 +267,6 @@ for (i = 0, j = assignOps.length; i < j; i++) {
     assignOps[t] = tokens[t];
 }
 
-function defineProperty(obj, prop, val, dontDelete, readOnly, dontEnum) {
-    Object.defineProperty(obj, prop,
-                          { value: val, writable: !readOnly, configurable: !dontDelete,
-                            enumerable: !dontEnum });
-}
-
 function apply(f, o, a) {
     return Function.prototype.apply.call(f, [o].concat(a));
 }
@@ -414,7 +408,6 @@ exports.isStatementStartCode = isStatementStartCode;
 exports.tokenIds = tokenIds;
 exports.consts = consts;
 exports.assignOps = assignOps;
-exports.defineProperty = defineProperty;
 exports.hasDirectProperty = hasDirectProperty;
 exports.apply = apply;
 exports.applyNew = applyNew;

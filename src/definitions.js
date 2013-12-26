@@ -263,10 +263,6 @@ for (i = 0, j = assignOps.length; i < j; i++) {
     assignOps[t] = tokens[t];
 }
 
-function apply(f, o, a) {
-    return Function.prototype.apply.call(f, [o].concat(a));
-}
-
 function applyNew(f, a) {
     return new (f.bind.apply(f, [,].concat(Array.prototype.slice.call(a))))();
 }
@@ -405,7 +401,6 @@ exports.tokenIds = tokenIds;
 exports.consts = consts;
 exports.assignOps = assignOps;
 exports.hasDirectProperty = hasDirectProperty;
-exports.apply = apply;
 exports.applyNew = applyNew;
 exports.Dict = Dict;
 exports.Stack = Stack;

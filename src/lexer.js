@@ -161,13 +161,13 @@ Tokenizer.prototype = {
         return this.token;
     },
 
-    peek: function (scanOperand) {
+    peek: function (scanOperand, keywordIsName) {
         var tt, next;
         if (this.lookahead) {
             next = this.tokens[(this.tokenIndex + this.lookahead) & 3];
             tt = (this.scanNewlines && next.lineno !== this.lineno) ? tk.NEWLINE : next.type;
         } else {
-            tt = this.get(scanOperand);
+            tt = this.get(scanOperand, keywordIsName);
             this.unget();
         }
         return tt;

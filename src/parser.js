@@ -208,8 +208,8 @@ Pp.mustMatch = function mustMatch(tt, keywordIsName) {
     return this.t.mustMatch(tt, keywordIsName);
 };
 
-Pp.peek = function peek(scanOperand) {
-    return this.t.peek(scanOperand);
+Pp.peek = function peek(scanOperand, keywordIsName) {
+    return this.t.peek(scanOperand, keywordIsName);
 };
 
 Pp.peekOnSameLine = function peekOnSameLine(scanOperand) {
@@ -1972,7 +1972,7 @@ Pp.PrimaryExpression = function PrimaryExpression() {
                 tt = this.t.get();
                 var tokenValue = this.t.token.value;
                 if ((tokenValue === "get" || tokenValue === "set") &&
-                    (this.peek() === IDENTIFIER || Definitions.isKeyword[this.peek()])) {
+                    this.peek(false, true) === IDENTIFIER) {
                     var fn = this.FunctionDefinition(true, EXPRESSED_FORM, null, true);
                     
                     // Check idTypes for duplicate definitions of key.

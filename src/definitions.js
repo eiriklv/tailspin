@@ -214,7 +214,6 @@ var opTypeNames = {
 
 // Hash of keyword identifier to tokens index.
 var keywords = {};
-var isKeyword = [];
 var mozillaKeywords = {};
 
 // Define const END, etc., based on the token names.  Also map name to index.
@@ -238,7 +237,6 @@ for (var i = 0, j = tokens.length; i < j; i++) {
             strictKeywords[name] = i;
         }
         keywords[t] = i;
-        isKeyword[i] = true;
     }
     else {
         name = (/^\W/.test(t) ? opTypeNames[t] : t);
@@ -393,7 +391,6 @@ exports.whitespace = whitespace;
 exports.newlines = newlines;
 exports.opTypeNames = opTypeNames;
 exports.keywords = keywords;
-exports.isKeyword = isKeyword;
 exports.mozillaKeywords = mozillaKeywords;
 exports.strictKeywords = strictKeywords;
 exports.isStatementStartCode = isStatementStartCode;

@@ -58,12 +58,6 @@ eval(Tailspin.Definitions.consts);
 Tailspin.Parser = (function () {
 "use strict";
 
-var options = {
-    // Allow HTML comments?
-    allowHTMLComments: false,
-    // Allow experimental paren-free mode?
-    parenFreeMode: false
-};
 var Tokenizer = Tailspin.Lexer.Tokenizer;
 
 var Definitions = Tailspin.Definitions;
@@ -92,7 +86,6 @@ function Parser(tokenizer) {
     this.t = tokenizer;
     this.x = null;
     this.unexpectedEOF = false;
-    options.parenFreeMode && (this.parenFreeMode = true);
 }
 
 function StaticContext(parentScript, parentBlock, inModule, inFunction, strictMode) {
@@ -169,8 +162,6 @@ StaticContext.prototype = {
 };
 
 var Pp = Parser.prototype;
-
-Pp.parenFreeMode = false;
 
 Pp.withContext = function(x, f) {
     var x0 = this.x;
@@ -415,8 +406,6 @@ function repeatString(str, n) {
 }
 
 Pp.MaybeLeftParen = function MaybeLeftParen() {
-    if (this.parenFreeMode)
-        return this.match(LEFT_PAREN) ? LEFT_PAREN : END;
     return this.mustMatch(LEFT_PAREN).type;
 };
 
@@ -678,8 +667,7 @@ Pp.Statement = function Statement() {
       case FOR:
         n = this.newNode(LOOP_INIT);
         n.blockComments = comments;
-        if (!this.parenFreeMode)
-            this.mustMatch(LEFT_PAREN);
+        this.mustMatch(LEFT_PAREN);
         x2 = this.x.pushTarget(n).nest();
         x3 = this.x.update({ inForLoopInit: true });
         n2 = null;
@@ -732,15 +720,10 @@ Pp.Statement = function Statement() {
                     : this.Expression();
                 this.mustMatch(SEMICOLON);
                 tt2 = this.peek(true);
-                n.update = (this.parenFreeMode
-                            ? tt2 === LEFT_CURLY || Definitions.isStatementStartCode.hasOwnProperty(tt2)
-                            : tt2 === RIGHT_PAREN)
-                    ? null
-                    : this.Expression();
+                n.update = tt2 === RIGHT_PAREN? null : this.Expression();
             });
         }
-        if (!this.parenFreeMode)
-            this.mustMatch(RIGHT_PAREN);
+        this.mustMatch(RIGHT_PAREN);
         this.withContext(x2, function() {
             n.body = this.Statement();
         });
@@ -807,7 +790,7 @@ Pp.Statement = function Statement() {
         n.tryBlock = this.Block();
         while (this.match(CATCH)) {
             n2 = this.newNode();
-            p = this.MaybeLeftParen();
+            this.mustMatch(LEFT_PAREN);
             switch (this.t.get()) {
               case LEFT_BRACKET:
               case LEFT_CURLY:
@@ -823,14 +806,7 @@ Pp.Statement = function Statement() {
                 this.fail("missing identifier in catch");
                 break;
             }
-            /*if (this.match(IF)) {
-                if (!this.mozillaMode)
-                    this.fail("Illegal catch guard");
-                if (n.catchClauses.length && !n.catchClauses.top().guard)
-                    this.fail("Guarded catch after unguarded");
-                n2.guard = this.Expression();
-            }*/
-            this.MaybeRightParen(p);
+            this.mustMatch(RIGHT_PAREN);
             n2.block = this.Block();
             n.catchClauses.push(n2);
         }
@@ -1399,7 +1375,7 @@ Pp.GeneratorExpression = function GeneratorExpression(e) {
 }
 
 Pp.ComprehensionTail = function ComprehensionTail() {
-    var body, n, n2, n3, p;
+    var body, n, n2, n3;
 
     // t.token.type must be FOR
     body = this.newNode({ type: COMP_TAIL });
@@ -1407,7 +1383,7 @@ Pp.ComprehensionTail = function ComprehensionTail() {
     do {
         // Comprehension tails are always for..in loops.
         n = this.newNode({ type: FOR_IN, isLoop: true });
-        p = this.MaybeLeftParen();
+        this.mustMatch(LEFT_PAREN);
         switch(this.t.get()) {
           case LEFT_BRACKET:
           case LEFT_CURLY:
@@ -1432,7 +1408,7 @@ Pp.ComprehensionTail = function ComprehensionTail() {
         }
         this.mustMatch(IN);
         n.object = this.Expression();
-        this.MaybeRightParen(p);
+        this.mustMatch(RIGHT_PAREN);
         body.push(n);
     } while (this.match(FOR));
 
@@ -1444,14 +1420,9 @@ Pp.ComprehensionTail = function ComprehensionTail() {
 }
 
 Pp.HeadExpression = function HeadExpression() {
-    var p = this.MaybeLeftParen();
+    this.mustMatch(LEFT_PAREN);
     var n = this.ParenExpression();
-    this.MaybeRightParen(p);
-    if (p === END && !n.parenthesized) {
-        var tt = this.peek();
-        if (tt !== LEFT_CURLY && !Definitions.isStatementStartCode.hasOwnProperty(tt))
-            this.fail("Unparenthesized head followed by unbraced body");
-    }
+    this.mustMatch(RIGHT_PAREN);
     return n;
 }
 
@@ -1952,7 +1923,7 @@ Pp.PrimaryExpression = function PrimaryExpression() {
  * parse :: (source, filename, line number, boolean, sandbox) -> node
  */
 function parse(source, filename, lineno, strict, sandbox) {
-    var tokenizer = new Tokenizer(source, filename, lineno, options.allowHTMLComments, sandbox);
+    var tokenizer = new Tokenizer(source, filename, lineno, sandbox);
     var parser = new Parser(tokenizer);
     return parser.Script(false, null, true, strict);
 }
@@ -1964,7 +1935,7 @@ function parse(source, filename, lineno, strict, sandbox) {
  *               -> node
  */
 function parseFunction(source, requireName, form, filename, lineno, sandbox) {
-    var t = new Tokenizer(source, filename, lineno, options.allowHTMLComments, sandbox);
+    var t = new Tokenizer(source, filename, lineno, sandbox);
     var p = new Parser(t);
     p.x = new StaticContext(null, null, false, null, false);
     return p.FunctionDefinition(requireName, form);

@@ -124,7 +124,7 @@ function isIdentifier(str) {
 /*
  * Tokenizer :: (source, filename, line number, boolean, sandbox) -> Tokenizer
  */
-function Tokenizer(source, filename, lineno, allowHTMLComments, sandbox) {
+function Tokenizer(source, filename, lineno, sandbox) {
     this.cursor = 0;
     this.source = String(source);
     this.tokens = [];
@@ -133,7 +133,6 @@ function Tokenizer(source, filename, lineno, allowHTMLComments, sandbox) {
     this.scanNewlines = false;
     this.filename = filename || "";
     this.lineno = lineno || 1;
-    this.allowHTMLComments = allowHTMLComments;
     this.blockComments = null;
     this.sandbox = sandbox || (new Function("return this"))();
 }
@@ -203,7 +202,8 @@ Tokenizer.prototype = {
 
             if (ch === '\n' && !this.scanNewlines) {
                 this.lineno++;
-            } else if (ch === '/' && next === '*') {
+            }
+            else if (ch === '/' && next === '*') {
                 var commentStart = ++this.cursor;
                 var commentEnd = commentStart;
                 for (;;) {
@@ -223,10 +223,8 @@ Tokenizer.prototype = {
                     }
                 }
                 this.blockComments.push(input.substring(commentStart, commentEnd));
-            } else if ((ch === '/' && next === '/') ||
-                       (this.allowHTMLComments && ch === '<' && next === '!' &&
-                        input[this.cursor + 1] === '-' && input[this.cursor + 2] === '-' &&
-                        (this.cursor += 2))) {
+            }
+            else if (ch === '/' && next === '/') {
                 this.cursor++;
                 for (;;) {
                     ch = input[this.cursor++];
@@ -248,7 +246,8 @@ Tokenizer.prototype = {
                         break;
                     }
                 }
-            } else if (!(Definitions.whitespace.hasOwnProperty(ch))) {
+            }
+            else if (!(Definitions.whitespace.hasOwnProperty(ch))) {
                 this.cursor--;
                 return;
             }

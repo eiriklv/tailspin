@@ -85,7 +85,7 @@ var tokens = [
     // Nonterminal tree node type codes.
     "SCRIPT", "BLOCK", "LABEL", "FOR_IN", "CALL", "NEW_WITH_ARGS", "INDEX",
     "ARRAY_INIT", "OBJECT_INIT", "PROPERTY_INIT", "GETTER", "SETTER",
-    "GROUP", "LIST", "ARRAY_COMP", "GENERATOR", "COMP_TAIL",
+    "GROUP", "LIST", "ARRAY_COMP", "COMP_TAIL",
 
     // Contextual keywords.
     "IMPLEMENTS", "INTERFACE", "MODULE", "PACKAGE", "PRIVATE",

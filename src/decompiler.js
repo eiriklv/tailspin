@@ -282,10 +282,6 @@ function pp(n, d) {
             p += " " + pp(n.value, d);
         break;
 
-      case GENERATOR:
-        p += pp(n.expression, d) + " " + pp(n.tail, d);
-        break;
-
       case WITH:
         p += "with (" + pp(n.object, d) + ") ";
         p += pp(n.body, d);

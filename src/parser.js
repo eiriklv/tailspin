@@ -393,8 +393,7 @@ function scriptInit() {
              expDecls: [],
              exports: new Dict(),
              hasEmptyReturn: false,
-             hasReturnWithValue: false,
-             hasYield: false };
+             hasReturnWithValue: false };
 }
 
 function repeatString(str, n) {
@@ -1155,8 +1154,6 @@ Pp.FunctionDefinition = function FunctionDefinition(requireName, functionForm, c
     f.blockComments = comments;
     if (f.type !== FUNCTION)
         f.type = (f.value === "get") ? GETTER : SETTER;
-    if (this.match(MUL))
-        f.isExplicitGenerator = true;
     if (this.match(IDENTIFIER, false, keywordIsName)) {
         f.name = this.t.token.value;
         this.checkValidIdentifierIfStrict("function", f.name);
@@ -1216,12 +1213,6 @@ Pp.FunctionDefinition = function FunctionDefinition(requireName, functionForm, c
     f.functionForm = functionForm;
     if (functionForm === DECLARED_FORM)
         this.x.parentScript.funDecls.push(f);
-
-    if (this.x.inModule && !f.isExplicitGenerator && f.body.hasYield)
-        this.fail("yield in non-generator function");
-
-    if (f.isExplicitGenerator || f.body.hasYield)
-        f.body = this.newNode({ type: GENERATOR, body: f.body });
 
     return f;
 }
@@ -1368,12 +1359,6 @@ Pp.DestructuringExpression = function DestructuringExpression(simpleNamesOnly) {
     return n;
 }
 
-Pp.GeneratorExpression = function GeneratorExpression(e) {
-    return this.newNode({ type: GENERATOR,
-                          expression: e,
-                          tail: this.ComprehensionTail() });
-}
-
 Pp.ComprehensionTail = function ComprehensionTail() {
     var body, n, n2, n3;
 
@@ -1436,11 +1421,6 @@ Pp.ParenExpression = function ParenExpression() {
     var n = this.withContext(x2, function() {
         return this.Expression();
     });
-    if (this.match(FOR)) {
-        if (n.type === COMMA && !n.parenthesized)
-            this.fail("Generator expression must be parenthesized");
-        n = this.GeneratorExpression(n);
-    }
 
     return n;
 }
@@ -1785,11 +1765,6 @@ Pp.ArgumentList = function ArgumentList() {
         return n;
     do {
         n2 = this.AssignExpression();
-        if (this.match(FOR)) {
-            n2 = this.GeneratorExpression(n2);
-            if (n.children.length > 1 || this.peek(true) === COMMA)
-                this.fail("Generator expression must be parenthesized");
-        }
         n.push(n2);
     } while (this.match(COMMA));
     this.mustMatch(RIGHT_PAREN);

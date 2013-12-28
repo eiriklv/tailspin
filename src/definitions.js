@@ -85,11 +85,11 @@ var tokens = [
     // Nonterminal tree node type codes.
     "SCRIPT", "BLOCK", "LABEL", "FOR_IN", "CALL", "NEW_WITH_ARGS", "INDEX",
     "ARRAY_INIT", "OBJECT_INIT", "PROPERTY_INIT", "GETTER", "SETTER",
-    "GROUP", "LIST", "LET_BLOCK", "ARRAY_COMP", "GENERATOR", "COMP_TAIL",
+    "GROUP", "LIST", "ARRAY_COMP", "GENERATOR", "COMP_TAIL",
 
     // Contextual keywords.
-    "IMPLEMENTS", "INTERFACE", "LET", "MODULE", "PACKAGE", "PRIVATE",
-    "PROTECTED", "PUBLIC", "STATIC", "USE", "YIELD",
+    "IMPLEMENTS", "INTERFACE", "MODULE", "PACKAGE", "PRIVATE",
+    "PROTECTED", "PUBLIC", "STATIC", "USE",
 
     // Terminals.
     "IDENTIFIER", "NUMBER", "STRING", "REGEXP",
@@ -214,7 +214,6 @@ var opTypeNames = {
 
 // Hash of keyword identifier to tokens index.
 var keywords = {};
-var mozillaKeywords = {};
 
 // Define const END, etc., based on the token names.  Also map name to index.
 var tokenIds = {};
@@ -230,9 +229,6 @@ for (var i = 0, j = tokens.length; i < j; i++) {
     var name;
     if (/^[a-z]/.test(t)) {
         name = t.toUpperCase();
-        if (name === "LET" || name === "YIELD") {
-            mozillaKeywords[name] = i;
-        }
         if (strictKeywords.hasOwnProperty(name)) {
             strictKeywords[name] = i;
         }
@@ -391,7 +387,6 @@ exports.whitespace = whitespace;
 exports.newlines = newlines;
 exports.opTypeNames = opTypeNames;
 exports.keywords = keywords;
-exports.mozillaKeywords = mozillaKeywords;
 exports.strictKeywords = strictKeywords;
 exports.isStatementStartCode = isStatementStartCode;
 exports.tokenIds = tokenIds;

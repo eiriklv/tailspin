@@ -494,13 +494,6 @@ Tokenizer.prototype = {
             return;
         }
 
-        if (this.parser.mozillaMode) {
-            if (Definitions.mozillaKeywords.hasOwnProperty(id)) {
-                token.type = Definitions.mozillaKeywords[id];
-                return;
-            }
-        }
-
         if (this.parser.x.strictMode) {
             if (Definitions.strictKeywords.hasOwnProperty(id)) {
                 token.type = Definitions.strictKeywords[id];

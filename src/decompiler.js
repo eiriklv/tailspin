@@ -107,7 +107,7 @@ function nodeStr(n) {
     return '"' + nodeStrEscape(n.value) + '"';
 }
 
-function pp(n, d, inLetHead) {
+function pp(n, d) {
     var topScript = false;
 
     if (!n)
@@ -173,14 +173,6 @@ function pp(n, d, inLetHead) {
         p += "\n}";
         break;
 
-      case LET_BLOCK:
-        p += "let (" + pp(n.variables, d, true) + ") ";
-        if (n.expression)
-            p += pp(n.expression, d);
-        else
-            p += pp(n.block, d);
-        break;
-
       case IF:
         p += "if (" + pp(n.condition, d) + ") ";
 
@@ -240,7 +232,7 @@ function pp(n, d, inLetHead) {
 
       case FOR_IN:
         var u = n.varDecl;
-        p += n.isEach ? "for each (" : "for (";
+        p += "for (";
         p += (u ? pp(u, d) : pp(n.iterator, d)) + " in " +
             pp(n.object, d) + ") ";
 
@@ -290,12 +282,6 @@ function pp(n, d, inLetHead) {
             p += " " + pp(n.value, d);
         break;
 
-      case YIELD:
-        p += "yield";
-        if (n.value)
-            p += " " + pp(n.value, d);
-        break;
-
       case GENERATOR:
         p += pp(n.expression, d) + " " + pp(n.tail, d);
         break;
@@ -305,13 +291,10 @@ function pp(n, d, inLetHead) {
         p += pp(n.body, d);
         break;
 
-      case LET:
       case VAR:
       case CONST:
         var nc = n.children;
-        if (!inLetHead) {
-            p += tokens[n.type] + " ";
-        }
+        p += tokens[n.type] + " ";
         for (var i = 0, j = nc.length; i < j; i++) {
             if (i > 0)
                 p += ", ";

@@ -61,8 +61,6 @@ Tailspin.Parser = (function () {
 var options = {
     // Allow HTML comments?
     allowHTMLComments: false,
-    // Allow non-standard Mozilla extensions?
-    mozillaMode: false,
     // Allow experimental paren-free mode?
     parenFreeMode: false
 };
@@ -94,7 +92,6 @@ function Parser(tokenizer) {
     this.t = tokenizer;
     this.x = null;
     this.unexpectedEOF = false;
-    options.mozillaMode && (this.mozillaMode = true);
     options.parenFreeMode && (this.parenFreeMode = true);
 }
 
@@ -172,8 +169,6 @@ StaticContext.prototype = {
 };
 
 var Pp = Parser.prototype;
-
-Pp.mozillaMode = false;
 
 Pp.parenFreeMode = false;
 
@@ -517,7 +512,6 @@ function registerExport(exports, decl) {
             register(decl.children[i].name, new Export(decl.children[i], true));
         break;
 
-      case LET:
       case CONST:
         throw new Error("NYI: " + Definitions.tokens[decl.type]);
 
@@ -609,7 +603,6 @@ Pp.Statement = function Statement() {
         switch (this.peek()) {
           case MODULE:
           case FUNCTION:
-          case LET:
           case VAR:
           case CONST:
             n = this.Statement();
@@ -685,12 +678,6 @@ Pp.Statement = function Statement() {
       case FOR:
         n = this.newNode(LOOP_INIT);
         n.blockComments = comments;
-        if (this.match(IDENTIFIER)) {
-            if (this.t.token.value === "each")
-                n.isEach = true;
-            else
-                this.t.unget();
-        }
         if (!this.parenFreeMode)
             this.mustMatch(LEFT_PAREN);
         x2 = this.x.pushTarget(n).nest();
@@ -701,18 +688,8 @@ Pp.Statement = function Statement() {
                 if (tt === VAR || tt === CONST) {
                     this.t.get();
                     n2 = this.Variables();
-                } else if (tt === LET) {
-                    this.t.get();
-                    if (this.peek() === LEFT_PAREN) {
-                        n2 = this.LetBlock(false);
-                    } else {
-                        // Let in for head, we need to add an implicit block
-                        // around the rest of the for.
-                        this.x.parentBlock = n;
-                        n.varDecls = [];
-                        n2 = this.Variables();
-                    }
-                } else {
+                }
+                else {
                     n2 = this.Expression();
                 }
             });
@@ -721,7 +698,7 @@ Pp.Statement = function Statement() {
             n.type = FOR_IN;
             this.withContext(x3, function() {
                 n.object = this.Expression();
-                if (n2.type === VAR || n2.type === LET) {
+                if (n2.type === VAR) {
                     c = n2.children;
 
                     // Destructuring turns one decl into multiples, so either
@@ -749,8 +726,6 @@ Pp.Statement = function Statement() {
             x3.inForLoopInit = false;
             n.setup = n2;
             this.mustMatch(SEMICOLON);
-            if (n.isEach)
-                this.fail("Invalid for each..in loop");
             this.withContext(x3, function() {
                 n.condition = (this.peek(true) === SEMICOLON)
                     ? null
@@ -848,13 +823,13 @@ Pp.Statement = function Statement() {
                 this.fail("missing identifier in catch");
                 break;
             }
-            if (this.match(IF)) {
+            /*if (this.match(IF)) {
                 if (!this.mozillaMode)
                     this.fail("Illegal catch guard");
                 if (n.catchClauses.length && !n.catchClauses.top().guard)
                     this.fail("Guarded catch after unguarded");
                 n2.guard = this.Expression();
-            }
+            }*/
             this.MaybeRightParen(p);
             n2.block = this.Block();
             n.catchClauses.push(n2);
@@ -875,7 +850,7 @@ Pp.Statement = function Statement() {
         break;
 
       case RETURN:
-        n = this.ReturnOrYield();
+        n = this.Return();
         break;
 
       case WITH:
@@ -892,14 +867,6 @@ Pp.Statement = function Statement() {
 
       case VAR:
       case CONST:
-        n = this.Variables();
-        break;
-
-      case LET:
-        if (this.peek() === LEFT_PAREN) {
-            n = this.LetBlock(true);
-            return n;
-        }
         n = this.Variables();
         break;
 
@@ -1044,36 +1011,23 @@ Pp.MagicalSemicolon = function MagicalSemicolon() {
 }
 
 /*
- * ReturnOrYield :: () -> (RETURN | YIELD) node
+ * Return :: () -> (RETURN) node
  */
-Pp.ReturnOrYield = function ReturnOrYield() {
-    var n, b, tt = this.t.token.type, tt2;
-
+Pp.Return = function Return() {
     var parentScript = this.x.parentScript;
 
-    if (tt === RETURN) {
-        if (!this.x.inFunction)
-            this.fail("Return not in function");
-    } else /* if (tt === YIELD) */ {
-        if (!this.x.inFunction)
-            this.fail("Yield not in function");
-        parentScript.hasYield = true;
+    if (!this.x.inFunction) {
+        this.fail("Return not in function");
     }
-    n = this.newNode({ value: undefined });
+    
+    var n = this.newNode({ value: undefined });
 
-    tt2 = (tt === RETURN) ? this.peekOnSameLine(true) : this.peek(true);
-    if (tt2 !== END && tt2 !== NEWLINE &&
-        tt2 !== SEMICOLON && tt2 !== RIGHT_CURLY
-        && (tt !== YIELD ||
-            (tt2 !== tt && tt2 !== RIGHT_BRACKET && tt2 !== RIGHT_PAREN &&
-             tt2 !== COLON && tt2 !== COMMA))) {
-        if (tt === RETURN) {
-            n.value = this.Expression();
-            parentScript.hasReturnWithValue = true;
-        } else {
-            n.value = this.AssignExpression();
-        }
-    } else if (tt === RETURN) {
+    var tt2 = this.peekOnSameLine(true);
+    if (tt2 !== END && tt2 !== NEWLINE && tt2 !== SEMICOLON && tt2 !== RIGHT_CURLY) {
+        n.value = this.Expression();
+        parentScript.hasReturnWithValue = true;
+    }
+    else {
         parentScript.hasEmptyReturn = true;
     }
 
@@ -1324,7 +1278,7 @@ Pp.ModuleVariables = function ModuleVariables(n) {
  * Parses a comma-separated list of var declarations (and maybe
  * initializations).
  */
-Pp.Variables = function Variables(letBlock) {
+Pp.Variables = function Variables() {
     var n, n2, ss, i, s, tt;
 
     tt = this.t.token.type;
@@ -1332,13 +1286,6 @@ Pp.Variables = function Variables(letBlock) {
       case VAR:
       case CONST:
         s = this.x.parentScript;
-        break;
-      case LET:
-        s = this.x.parentBlock;
-        break;
-      case LEFT_PAREN:
-        tt = LET;
-        s = letBlock;
         break;
     }
 
@@ -1395,38 +1342,6 @@ Pp.Variables = function Variables(letBlock) {
         }
         n2.blockComment = comment;
     } while (this.match(COMMA));
-
-    return n;
-}
-
-/*
- * LetBlock :: (boolean) -> node
- *
- * Does not handle let inside of for loop init.
- */
-Pp.LetBlock = function LetBlock(isStatement) {
-    var n, n2;
-
-    // t.token.type must be LET
-    n = this.newNode({ type: LET_BLOCK, varDecls: [] });
-    this.mustMatch(LEFT_PAREN);
-    n.variables = this.Variables(n);
-    this.mustMatch(RIGHT_PAREN);
-
-    if (isStatement && this.peek() !== LEFT_CURLY) {
-        /*
-         * If this is really an expression in let statement guise, then we
-         * need to wrap the LET_BLOCK node in a SEMICOLON node so that we pop
-         * the return value of the expression.
-         */
-        n2 = this.newNode({ type: SEMICOLON, expression: n });
-        isStatement = false;
-    }
-
-    if (isStatement)
-        n.block = this.Block();
-    else
-        n.expression = this.AssignExpression();
 
     return n;
 }
@@ -1492,13 +1407,6 @@ Pp.ComprehensionTail = function ComprehensionTail() {
     do {
         // Comprehension tails are always for..in loops.
         n = this.newNode({ type: FOR_IN, isLoop: true });
-        if (this.match(IDENTIFIER)) {
-            // But sometimes they're for each..in.
-            if (this.mozillaMode && this.t.token.value === "each")
-                n.isEach = true;
-            else
-                this.t.unget();
-        }
         p = this.MaybeLeftParen();
         switch(this.t.get()) {
           case LEFT_BRACKET:
@@ -1558,8 +1466,6 @@ Pp.ParenExpression = function ParenExpression() {
         return this.Expression();
     });
     if (this.match(FOR)) {
-        if (n.type === YIELD && !n.parenthesized)
-            this.fail("Yield expression must be parenthesized");
         if (n.type === COMMA && !n.parenthesized)
             this.fail("Generator expression must be parenthesized");
         n = this.GeneratorExpression(n);
@@ -1583,8 +1489,6 @@ Pp.Expression = function Expression() {
         n = n2;
         do {
             n2 = n.children[n.children.length-1];
-            if (n2.type === YIELD && !n2.parenthesized)
-                this.fail("Yield expression must be parenthesized");
             n.push(this.AssignExpression());
         } while (this.match(COMMA));
     }
@@ -1594,11 +1498,6 @@ Pp.Expression = function Expression() {
 
 Pp.AssignExpression = function AssignExpression() {
     var n, lhs;
-
-    // Have to treat yield like an operand because it could be the leftmost
-    // operand of the expression.
-    if (this.match(YIELD, true))
-        return this.ReturnOrYield();
 
     lhs = this.ConditionalExpression();
 
@@ -1915,8 +1814,6 @@ Pp.ArgumentList = function ArgumentList() {
         return n;
     do {
         n2 = this.AssignExpression();
-        if (n2.type === YIELD && !n2.parenthesized && this.peek() === COMMA)
-            this.fail("Yield expression must be parenthesized");
         if (this.match(FOR)) {
             n2 = this.GeneratorExpression(n2);
             if (n.children.length > 1 || this.peek(true) === COMMA)
@@ -2037,11 +1934,7 @@ Pp.PrimaryExpression = function PrimaryExpression() {
         this.mustMatch(RIGHT_PAREN);
         n.parenthesized = true;
         break;
-
-      case LET:
-        n = this.LetBlock(false);
-        break;
-
+      
       case NULL: case THIS: case TRUE: case FALSE:
       case IDENTIFIER: case NUMBER: case STRING: case REGEXP:
         n = this.newNode();

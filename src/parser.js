@@ -88,10 +88,9 @@ function Parser(tokenizer) {
     this.unexpectedEOF = false;
 }
 
-function StaticContext(parentScript, parentBlock, inModule, inFunction, strictMode) {
+function StaticContext(parentScript, parentBlock, inFunction, strictMode) {
     this.parentScript = parentScript;
     this.parentBlock = parentBlock || parentScript;
-    this.inModule = inModule || false;
     this.inFunction = inFunction || null;
     this.inForLoopInit = false;
     this.topLevel = true;
@@ -147,17 +146,8 @@ StaticContext.prototype = {
     nest: function() {
         return this.topLevel ? this.update({ topLevel: false }) : this;
     },
-    canImport: function() {
-        return this.topLevel && !this.inFunction;
-    },
-    canExport: function() {
-        return this.inModule && this.topLevel && !this.inFunction;
-    },
     banWith: function() {
-        return this.strictMode || this.inModule;
-    },
-    modulesAllowed: function() {
-        return this.topLevel && !this.inFunction;
+        return this.strictMode;
     }
 };
 
@@ -209,11 +199,11 @@ Pp.done = function done() {
 /*
  * Script :: (boolean, boolean, boolean) -> node
  *
- * Parses the toplevel and module/function bodies.
+ * Parses the toplevel and function bodies.
  */
-Pp.Script = function Script(inModule, inFunction, expectEnd, strict) {
+Pp.Script = function Script(inFunction, expectEnd, strict) {
     var node = this.newNode(scriptInit());
-    var x2 = new StaticContext(node, node, inModule, inFunction, strict);
+    var x2 = new StaticContext(node, node, inFunction, strict);
     this.withContext(x2, function() {
         this.Statements(node, true);
     });
@@ -391,7 +381,6 @@ function scriptInit() {
              modLoads: new Dict(),
              impDecls: [],
              expDecls: [],
-             exports: new Dict(),
              hasEmptyReturn: false,
              hasReturnWithValue: false };
 }
@@ -469,101 +458,6 @@ Pp.Block = function Block() {
 var DECLARED_FORM = 0, EXPRESSED_FORM = 1, STATEMENT_FORM = 2;
 
 /*
- * Export :: (binding node, boolean) -> Export
- *
- * Static semantic representation of a module export.
- */
-function Export(node, isDefinition) {
-    this.node = node;                 // the AST node declaring this individual export
-    this.isDefinition = isDefinition; // is the node an 'export'-annotated definition?
-    this.resolved = null;             // resolved pointer to the target of this export
-}
-
-/*
- * registerExport :: (Dict, EXPORT node) -> void
- */
-function registerExport(exports, decl) {
-    function register(name, exp) {
-        if (exports.has(name))
-            throw new SyntaxError("multiple exports of " + name);
-        exports.set(name, exp);
-    }
-
-    switch (decl.type) {
-      case MODULE:
-      case FUNCTION:
-        register(decl.name, new Export(decl, true));
-        break;
-
-      case VAR:
-        for (var i = 0; i < decl.children.length; i++)
-            register(decl.children[i].name, new Export(decl.children[i], true));
-        break;
-
-      case CONST:
-        throw new Error("NYI: " + Definitions.tokens[decl.type]);
-
-      case EXPORT:
-        for (var i = 0; i < decl.pathList.length; i++) {
-            var path = decl.pathList[i];
-            switch (path.type) {
-              case OBJECT_INIT:
-                for (var j = 0; j < path.children.length; j++) {
-                    // init :: IDENTIFIER | PROPERTY_INIT
-                    var init = path.children[j];
-                    if (init.type === IDENTIFIER)
-                        register(init.value, new Export(init, false));
-                    else
-                        register(init.children[0].value, new Export(init.children[1], false));
-                }
-                break;
-
-              case DOT:
-                register(path.children[1].value, new Export(path, false));
-                break;
-
-              case IDENTIFIER:
-                register(path.value, new Export(path, false));
-                break;
-
-              default:
-                throw new Error("unexpected export path: " + Definitions.tokens[path.type]);
-            }
-        }
-        break;
-
-      default:
-        throw new Error("unexpected export decl: " + Definitions.tokens[exp.type]);
-    }
-}
-
-/*
- * Module :: (node) -> Module
- *
- * Static semantic representation of a module.
- */
-function Module(node) {
-    var exports = node.body.exports;
-    var modDefns = node.body.modDefns;
-
-    var exportedModules = new Dict();
-
-    exports.forEach(function(name, exp) {
-        var node = exp.node;
-        if (node.type === MODULE) {
-            exportedModules.set(name, node);
-        } else if (!exp.isDefinition && node.type === IDENTIFIER && modDefns.has(node.value)) {
-            var mod = modDefns.get(node.value);
-            exportedModules.set(name, mod);
-        }
-    });
-
-    this.node = node;
-    this.exports = exports;
-    this.exportedModules = exportedModules;
-}
-
-/*
  * Statement :: () -> node
  *
  * Parses a Statement.
@@ -576,36 +470,6 @@ Pp.Statement = function Statement() {
     // Cases for statements ending in a right curly return early, avoiding the
     // common semicolon insertion magic after this switch.
     switch (tt) {
-      case IMPORT:
-        throw "Import not supported.";
-        /*if (!this.x.canImport())
-            this.fail("illegal context for import statement");
-        n = this.newNode();
-        n.pathList = this.ImportPathList();
-        this.x.parentScript.impDecls.push(n);*/
-        break;
-
-      case EXPORT:
-        if (!this.x.canExport())
-            this.fail("export statement not in module top level");
-        switch (this.peek()) {
-          case MODULE:
-          case FUNCTION:
-          case VAR:
-          case CONST:
-            n = this.Statement();
-            n.blockComments = comments;
-            n.exported = true;
-            this.x.parentScript.expDecls.push(n);
-            registerExport(this.x.parentScript.exports, n);
-            return n;
-        }
-        n = this.newNode();
-        n.pathList = this.ExportPathList();
-        this.x.parentScript.expDecls.push(n);
-        registerExport(this.x.parentScript.exports, n);
-        break;
-
       case FUNCTION:
         // DECLARED_FORM extends funDecls of x, STATEMENT_FORM doesn't.
         return this.FunctionDefinition(true, this.x.topLevel ? DECLARED_FORM : STATEMENT_FORM, comments);
@@ -829,8 +693,9 @@ Pp.Statement = function Statement() {
         break;
 
       case WITH:
-        if (this.x.banWith())
-            this.fail("with statements not allowed in strict code or modules");
+        if (this.x.banWith()) {
+            this.fail("with statements not allowed in strict code");
+        }
         n = this.newNode();
         n.blockComments = comments;
         n.object = this.HeadExpression();
@@ -857,61 +722,21 @@ Pp.Statement = function Statement() {
         return n;
 
       case IDENTIFIER:
-      case USE:
-      case MODULE:
-        switch (this.t.token.value) {
-          case "use":
-            if (!isPragmaToken(this.peekOnSameLine())) {
-                this.t.unget();
-                break;
-            }
-            return this.newNode({ type: USE, params: this.Pragmas() });
-
-          case "module":
-            if (!this.x.modulesAllowed())
-                this.fail("module declaration not at top level");
-            this.x.parentScript.hasModules = true;
-            tt = this.peekOnSameLine();
-            if (tt !== IDENTIFIER && tt !== LEFT_CURLY) {
-                this.t.unget();
-                break;
-            }
-            n = this.newNode({ type: MODULE });
-            n.blockComments = comments;
-            this.mustMatch(IDENTIFIER);
+        tt = this.peek();
+        // Labeled statement.
+        if (tt === COLON) {
             label = this.t.token.value;
-
-            if (this.match(LEFT_CURLY)) {
-                n.name = label;
-                n.body = this.Script(true, null);
-                n.module = new Module(n);
-                this.mustMatch(RIGHT_CURLY);
-                this.x.parentScript.modDefns.set(n.name, n);
-                return n;
-            }
-
-            this.t.unget();
-            this.ModuleVariables(n);
+            if (this.x.allLabels.has(label))
+                this.fail("Duplicate label: " + label);
+            this.t.get();
+            n = this.newNode({ type: LABEL, label: label });
+            n.blockComments = comments;
+            x2 = this.x.pushLabel(label).nest();
+            this.withContext(x2, function() {
+                n.statement = this.Statement();
+            });
+            n.target = (n.statement.type === LABEL) ? n.statement.target : n.statement;
             return n;
-
-          default:
-            tt = this.peek();
-            // Labeled statement.
-            if (tt === COLON) {
-                label = this.t.token.value;
-                if (this.x.allLabels.has(label))
-                    this.fail("Duplicate label: " + label);
-                this.t.get();
-                n = this.newNode({ type: LABEL, label: label });
-                n.blockComments = comments;
-                x2 = this.x.pushLabel(label).nest();
-                this.withContext(x2, function() {
-                    n.statement = this.Statement();
-                });
-                n.target = (n.statement.type === LABEL) ? n.statement.target : n.statement;
-                return n;
-            }
-            // FALL THROUGH
         }
         // FALL THROUGH
 
@@ -1009,40 +834,6 @@ Pp.Return = function Return() {
     return n;
 }
 
-/*
- * ModuleExpression :: () -> (STRING | IDENTIFIER | DOT) node
- */
-Pp.ModuleExpression = function ModuleExpression() {
-    return this.match(STRING) ? this.newNode() : this.QualifiedPath();
-}
-
-/*
- * ImportPathList :: () -> Array[DOT node]
- */
-Pp.ImportPathList = function ImportPathList() {
-    var a = [];
-    do {
-        a.push(this.ImportPath());
-    } while (this.match(COMMA));
-    return a;
-}
-
-/*
- * ImportPath :: () -> DOT node
- */
-Pp.ImportPath = function ImportPath() {
-    var n = this.QualifiedPath();
-    if (!this.match(DOT)) {
-        if (n.type === IDENTIFIER)
-            this.fail("cannot import local variable");
-        return n;
-    }
-
-    var n2 = this.newNode();
-    n2.push(n);
-    n2.push(this.ImportSpecifierSet());
-    return n2;
-}
 
 /*
  * ExplicitSpecifierSet :: (() -> node) -> OBJECT_INIT node
@@ -1070,15 +861,6 @@ Pp.ExplicitSpecifierSet = function ExplicitSpecifierSet(SpecifierRHS) {
     return n;
 }
 
-/*
- * ImportSpecifierSet :: () -> (IDENTIFIER | OBJECT_INIT) node
- */
-Pp.ImportSpecifierSet = function ImportSpecifierSet() {
-    var self = this;
-    return this.match(MUL)
-        ? this.newNode({ type: IDENTIFIER, name: "*" })
-    : ExplicitSpecifierSet(function() { return self.Identifier() });
-}
 
 /*
  * Identifier :: () -> IDENTIFIER node
@@ -1119,26 +901,6 @@ Pp.QualifiedPath = function QualifiedPath() {
     return n;
 }
 
-/*
- * ExportPath :: () -> (IDENTIFIER | DOT | OBJECT_INIT) node
- */
-Pp.ExportPath = function ExportPath() {
-    var self = this;
-    if (this.peek() === LEFT_CURLY)
-        return this.ExplicitSpecifierSet(function() { return self.QualifiedPath() });
-    return this.QualifiedPath();
-}
-
-/*
- * ExportPathList :: () -> Array[(IDENTIFIER | DOT | OBJECT_INIT) node]
- */
-Pp.ExportPathList = function ExportPathList() {
-    var a = [];
-    do {
-        a.push(this.ExportPath());
-    } while (this.match(COMMA));
-    return a;
-}
 
 /*
  * FunctionDefinition :: (boolean,
@@ -1161,8 +923,7 @@ Pp.FunctionDefinition = function FunctionDefinition(requireName, functionForm, c
     else if (requireName)
         this.fail("missing function identifier");
 
-    var inModule = this.x.inModule;
-    var x2 = new StaticContext(null, null, inModule, f, this.x.strictMode);
+    var x2 = new StaticContext(null, null, f, this.x.strictMode);
     this.withContext(x2, function() {
         this.mustMatch(LEFT_PAREN);
         if (!this.match(RIGHT_PAREN)) {
@@ -1202,7 +963,7 @@ Pp.FunctionDefinition = function FunctionDefinition(requireName, functionForm, c
         if (tt !== LEFT_CURLY) {
             f.body = this.AssignExpression();
         } else {
-            f.body = this.Script(inModule, f, false, x2.strictMode);
+            f.body = this.Script(f, false, x2.strictMode);
         }
     });
 
@@ -1217,27 +978,6 @@ Pp.FunctionDefinition = function FunctionDefinition(requireName, functionForm, c
     return f;
 }
 
-/*
- * ModuleVariables :: (MODULE node) -> void
- *
- * Parses a comma-separated list of module declarations (and maybe
- * initializations).
- */
-Pp.ModuleVariables = function ModuleVariables(n) {
-    var n1, n2;
-    do {
-        n1 = this.Identifier();
-        if (this.match(ASSIGN)) {
-            n2 = this.ModuleExpression();
-            n1.initializer = n2;
-            if (n2.type === STRING)
-                this.x.parentScript.modLoads.set(n1.value, n2.value);
-            else
-                this.x.parentScript.modAssns.set(n1.value, n1);
-        }
-        n.push(n1);
-    } while (this.match(COMMA));
-}
 
 /*
  * Variables :: () -> node
@@ -1900,7 +1640,7 @@ Pp.PrimaryExpression = function PrimaryExpression() {
 function parse(source, filename, lineno, strict, sandbox) {
     var tokenizer = new Tokenizer(source, filename, lineno, sandbox);
     var parser = new Parser(tokenizer);
-    return parser.Script(false, null, true, strict);
+    return parser.Script(null, true, strict);
 }
 
 /*
@@ -1912,7 +1652,7 @@ function parse(source, filename, lineno, strict, sandbox) {
 function parseFunction(source, requireName, form, filename, lineno, sandbox) {
     var t = new Tokenizer(source, filename, lineno, sandbox);
     var p = new Parser(t);
-    p.x = new StaticContext(null, null, false, null, false);
+    p.x = new StaticContext(null, null, null, false);
     return p.FunctionDefinition(requireName, form);
 }
 
@@ -1925,8 +1665,6 @@ exports.EXPRESSED_FORM = EXPRESSED_FORM;
 exports.STATEMENT_FORM = STATEMENT_FORM;
 exports.Tokenizer = Tokenizer;
 exports.Parser = Parser;
-exports.Module = Module;
-exports.Export = Export;
 
 return exports;
 })();

@@ -184,10 +184,6 @@ functionInternals.set(sandbox.eval, {
             x2.scope = {object: new Object(), parent: x2.scope};
         }
         
-        if (ast.hasModules) {
-            thrw("Modules not supported.");
-        }
-        
         x2.execute(ast, function(v, prev) {next(x2.result, prev);}, null, null, null, thrw, prev);
     },
     construct: function() {}

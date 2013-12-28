@@ -1351,15 +1351,10 @@ function evaluateInContext(s, f, l, x, ret, thrw, prev) {
         // Parse the string into an AST.
         var ast = Tailspin.Parser.parse(s, f, l, false, sandbox);
         
-        if (ast.hasModules) {
-            thrw("Modules unsupported.", prev);
-        }
-        else {
-            x.strict = !!ast.strict;
-            x.execute(ast, function(v, prev) {
-                    ret(x.result, prev);
-                }, ret, null, null, thrw, prev);
-        }
+        x.strict = !!ast.strict;
+        x.execute(ast, function(v, prev) {
+                ret(x.result, prev);
+            }, ret, null, null, thrw, prev);
     }
     catch (e) {
         // Returns any native exception via the thrw continuation.

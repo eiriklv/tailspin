@@ -75,7 +75,7 @@ var hasInstance = sandboxExports.hasInstance;
 var constructFunction = sandboxExports.constructFunction;
 var callFunction = sandboxExports.callFunction;
 
-var hasDirectProperty = Definitions.hasDirectProperty;
+var hasDirectProperty = Tailspin.Utility.hasDirectProperty;
 
 
 function Reference(base, propertyName, node) {
@@ -147,17 +147,6 @@ function prevDeleteValue(base, key, prev) {
     return newPrev;
 }
 
-function getPropertyDescriptor(obj, propName) {
-    var propDesc;
-    while (!propDesc && obj) {
-        propDesc = Object.getOwnPropertyDescriptor(obj, propName);
-        if (!propDesc) {
-            obj = Object.getPrototypeOf(obj);
-        }
-    }
-    return propDesc;
-}
-
 function getValue(x, ref, next, thrw, prev) {
     if (ref instanceof Reference) {
         if (ref.base === null || ref.base === undefined) {
@@ -173,7 +162,7 @@ function getValue(x, ref, next, thrw, prev) {
         else {
             // Access property descriptor and get the value for the reference.
             var base = toObject(ref.base);
-            var propDesc = getPropertyDescriptor(base, ref.propertyName);
+            var propDesc = Tailspin.Utility.getPropertyDescriptor(base, ref.propertyName);
             
             if (propDesc && propDesc.get) {
                 // Handle getter properties by calling function.
@@ -205,7 +194,7 @@ function getValue(x, ref, next, thrw, prev) {
 function putValue(x, ref, value, refNode, strict, next, thrw, prev) {
     if (ref instanceof Reference) {
         var base = (toObject(ref.base) || global);
-        var propDesc = getPropertyDescriptor(base, ref.propertyName);
+        var propDesc = Tailspin.Utility.getPropertyDescriptor(base, ref.propertyName);
         
         if (propDesc && propDesc.set) {
             // Handle setter properties by calling function.

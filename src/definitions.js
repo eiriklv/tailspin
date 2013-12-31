@@ -133,7 +133,6 @@ var statementStartTokens = [
     "switch",
     "throw", "try",
     "var",
-    "yield",
     "while", "with",
 ];
 
@@ -253,6 +252,24 @@ for (i = 0, j = assignOps.length; i < j; i++) {
     assignOps[t] = tokens[t];
 }
 
+var exports = {};
+exports.tokens = tokens;
+exports.whitespace = whitespace;
+exports.newlines = newlines;
+exports.opTypeNames = opTypeNames;
+exports.keywords = keywords;
+exports.strictKeywords = strictKeywords;
+exports.isStatementStartCode = isStatementStartCode;
+exports.tokenIds = tokenIds;
+exports.consts = consts;
+exports.assignOps = assignOps;
+return exports;
+})();
+
+
+Tailspin.Utility = (function () {
+"use strict";
+
 function applyNew(f, a) {
     return new (f.bind.apply(f, [,].concat(Array.prototype.slice.call(a))))();
 }
@@ -260,6 +277,17 @@ function applyNew(f, a) {
 // Helper to avoid Object.prototype.hasOwnProperty polluting scope objects.
 function hasDirectProperty(o, p) {
     return Object.prototype.hasOwnProperty.call(o, p);
+}
+
+function getPropertyDescriptor(obj, propName) {
+    var propDesc;
+    while (!propDesc && obj) {
+        propDesc = Object.getOwnPropertyDescriptor(obj, propName);
+        if (!propDesc) {
+            obj = Object.getPrototypeOf(obj);
+        }
+    }
+    return propDesc;
 }
 
 function Dict(table, size) {
@@ -378,17 +406,8 @@ Stack.prototype = {
 };
 
 var exports = {};
-exports.tokens = tokens;
-exports.whitespace = whitespace;
-exports.newlines = newlines;
-exports.opTypeNames = opTypeNames;
-exports.keywords = keywords;
-exports.strictKeywords = strictKeywords;
-exports.isStatementStartCode = isStatementStartCode;
-exports.tokenIds = tokenIds;
-exports.consts = consts;
-exports.assignOps = assignOps;
 exports.hasDirectProperty = hasDirectProperty;
+exports.getPropertyDescriptor = getPropertyDescriptor;
 exports.applyNew = applyNew;
 exports.Dict = Dict;
 exports.Stack = Stack;

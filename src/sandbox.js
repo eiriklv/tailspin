@@ -14,7 +14,7 @@
 Tailspin.Sandbox = function (interpreter) {
 "use strict";
 
-var hasDirectProperty = Tailspin.Definitions.hasDirectProperty;
+var hasDirectProperty = Tailspin.Utility.hasDirectProperty;
 
 // Functions are created as a native javascript function, and an associated internal implementation.
 // When a function is called from Tailspin, the internal version is used with the correct

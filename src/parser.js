@@ -61,8 +61,8 @@ Tailspin.Parser = (function () {
 var Tokenizer = Tailspin.Lexer.Tokenizer;
 
 var Definitions = Tailspin.Definitions;
-var Dict = Definitions.Dict;
-var Stack = Definitions.Stack;
+var Dict = Tailspin.Utility.Dict;
+var Stack = Tailspin.Utility.Stack;
 
 
 /*

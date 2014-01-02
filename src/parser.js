@@ -50,10 +50,12 @@
  */
 
 // Outer non-strict code.
+// CUT>
 (function () {
 
 // Set constants in the local scope.
 eval(Tailspin.Definitions.consts);
+// <CUT
 
 Tailspin.Parser = (function () {
 "use strict";
@@ -1668,4 +1670,6 @@ exports.Parser = Parser;
 
 return exports;
 })();
+// CUT>
 })();
+// <CUT

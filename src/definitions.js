@@ -128,12 +128,11 @@ var statementStartTokens = [
     "debugger", "do",
     "for",
     "if",
-    "let",
     "return",
     "switch",
     "throw", "try",
     "var",
-    "while", "with",
+    "while", "with"
 ];
 
 // Whitespace characters (see ECMA-262 7.2)

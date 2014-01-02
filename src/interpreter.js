@@ -30,10 +30,12 @@
 
 // Outer non-strict code.
 
-Tailspin.Interpreter = function () {
+// CUT>
+(function () {
 
 // Set constants in the local scope.
 eval(Tailspin.Definitions.consts);
+// <CUT
 
 function nonStrictGetValue(base, name) {
     return base[name];
@@ -45,7 +47,7 @@ function nonStrictDeleteValue(base, name) {
     return delete base[name];
 }
 
-return (function () {
+Tailspin.Interpreter =  function () {
 "use strict";
 
 var Definitions = Tailspin.Definitions;
@@ -1377,5 +1379,7 @@ exports.createEvalExecutionContext = createEvalExecutionContext;
 exports.createFunctionExecutionContext = createFunctionExecutionContext;
 
 return exports;
-})();
 };
+// CUT>
+})();
+// <CUT

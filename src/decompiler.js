@@ -204,7 +204,7 @@ function pp(n, d) {
                 p += "  case " + pp(ca.caseLabel, d) + ":\n";
             else
                 p += "  default:\n";
-            ps = pp(ca.statements, d);
+            var ps = pp(ca.statements, d);
             p += ps.slice(2, ps.length - 2) + "\n";
         }
         p += "}";
@@ -478,7 +478,7 @@ function pp(n, d) {
                  * those also.
                  */
                 var propName = tc[0].value;
-                if (typeof propName === "string" && !Lexer.isIdentifier(propName)) {
+                if (typeof propName === "string" && !Tailspin.Lexer.isIdentifier(propName)) {
                     l = nodeStr(tc[0]);
                 } else {
                     l = pp(tc[0], d);

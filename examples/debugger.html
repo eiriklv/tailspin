@@ -5,28 +5,23 @@
     
     <link rel="stylesheet" type="text/css" href="examples.css">
     
-    <script type="text/javascript" src="../src/definitions.js"></script>
-    <script type="text/javascript" src="../src/lexer.js"></script>
-    <script type="text/javascript" src="../src/parser.js"></script>
-    <script type="text/javascript" src="../src/decompiler.js"></script>
-    <script type="text/javascript" src="../src/sandbox.js"></script>
-    <script type="text/javascript" src="../src/interpreter.js"></script>
+    <script type="text/javascript" src="../tailspin.js"></script>
     
     <script src="lib/codemirror-compressed.js"></script>
     <link rel="stylesheet" href="lib/codemirror.css">
     
     <script type="text/javascript">
-        var tailspin;
+        var interpreter;
         var tailspinDebugger;
         var mySource, myConsole;
         
         window.onload = function() {
             // Create a new interpreter.
-            tailspin = new Interpreter();
+            interpreter = new Tailspin.Interpreter();
             tailspinDebugger = new Debugger();
             
             // Add a single global 'console' that has a log function.
-            tailspin.global.console = {
+            interpreter.global.console = {
                 log:function(msg) {consoleLog(msg, 'log');}
             };
             
@@ -99,7 +94,7 @@
             },
             start: function() {
                 // Create an evaluation context that describes the how the code is to be executed.
-                var x = tailspin.createExecutionContext();
+                var x = interpreter.createExecutionContext();
                 
                 // Asynchronous running is prefered, so that tailspin execution does not block the browser.
                 x.asynchronous = true;
@@ -113,7 +108,7 @@
                 
                 // Run the code.
                 var source = mySource.getValue();
-                tailspin.evaluateInContext(source, "source", 0, x, this.returnFn.bind(this), this.errorFn.bind(this), null);
+                interpreter.evaluateInContext(source, "source", 0, x, this.returnFn.bind(this), this.errorFn.bind(this), null);
             },
             continueWithState: function(state) {
                 this.state = state;

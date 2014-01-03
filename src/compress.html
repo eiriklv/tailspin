@@ -1,0 +1,77 @@
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <title>Tailspin Compress</title>
+    
+    <script type="text/javascript" src="../src/definitions.js"></script>
+    
+    <script type="text/javascript">
+        var stringify = JSON.stringify;
+        var whitespaceStringify = function (obj) {
+            var white = "";
+            for (k in obj) {
+                if (obj.hasOwnProperty(k)) {
+                    var unid = k.charCodeAt(0).toString(16)
+                    while (unid.length < 4) unid = "0"+unid;
+                    white += "'\\u"+unid+"':true,";
+                }
+            }
+            return "{"+white+"}";
+        }
+        
+        function setup() {
+            var concat = "";
+            
+            // Start
+            concat += "var Tailspin = new (function () {\nvar Tailspin = this;\n\n";
+            
+            // Definitions
+            concat += Tailspin.Definitions.consts;
+            
+            concat += "\n\nTailspin.Definitions = {\n";
+            concat += "tokens: "+stringify(Tailspin.Definitions.tokens)+",\n";
+            concat += "whitespace: "+whitespaceStringify(Tailspin.Definitions.whitespace)+",\n";
+            concat += "newlines: "+whitespaceStringify(Tailspin.Definitions.newlines)+",\n";
+            concat += "opTypeNames: "+stringify(Tailspin.Definitions.opTypeNames)+",\n";
+            concat += "keywords: "+stringify(Tailspin.Definitions.keywords)+",\n";
+            concat += "strictKeywords: "+stringify(Tailspin.Definitions.strictKeywords)+",\n";
+            concat += "isStatementStartCode: "+stringify(Tailspin.Definitions.isStatementStartCode)+",\n";
+            concat += "tokenIds: "+stringify(Tailspin.Definitions.tokenIds)+",\n";
+            concat += "assignOps: "+stringify(Tailspin.Definitions.assignOps)+",\n";
+                
+            concat += "}\n\n";
+            
+            // Utility
+            function concatFile(file, next) {
+                var oReq = new XMLHttpRequest();
+                oReq.onload = function () {
+                    var src = this.responseText;
+                    src = src.replace(/CUT>[\s\S]*?<CUT/g, "");
+                    concat += src;
+                    if (next) next();
+                }
+                oReq.open("get", file, true);
+                oReq.send();
+            }
+            concatFile("../src/utility.js",
+              concatFile.bind(null, "../src/lexer.js",
+              concatFile.bind(null, "../src/parser.js",
+              concatFile.bind(null, "../src/decompiler.js",
+              concatFile.bind(null, "../src/sandbox.js",
+              concatFile.bind(null, "../src/interpreter.js",
+              end))))));
+            
+            // End
+            function end() {
+                concat += "\n\n})();\n";
+                
+                document.body.innerText = concat;
+            }
+        }
+    </script>
+</head>
+
+<body onload="setup()">
+
+</body>
+</html>

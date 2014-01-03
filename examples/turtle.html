@@ -5,32 +5,27 @@
     
     <link rel="stylesheet" type="text/css" href="examples.css">
     
-    <script type="text/javascript" src="../src/definitions.js"></script>
-    <script type="text/javascript" src="../src/lexer.js"></script>
-    <script type="text/javascript" src="../src/parser.js"></script>
-    <script type="text/javascript" src="../src/decompiler.js"></script>
-    <script type="text/javascript" src="../src/sandbox.js"></script>
-    <script type="text/javascript" src="../src/interpreter.js"></script>
+    <script type="text/javascript" src="../tailspin.js"></script>
     
     <script src="lib/codemirror-compressed.js"></script>
     <link rel="stylesheet" href="lib/codemirror.css">
     
     <script type="text/javascript">
-        var tailspin;
+        var interpreter;
         var mySource, myConsole;
         
         window.onload = function() {
             // Create a new interpreter.
-            tailspin = new Interpreter();
+            interpreter = new Tailspin.Interpreter();
             
             // Add a turtle controls to global.
-            tailspin.global.forward = forward;
-            tailspin.global.backward = backward;
-            tailspin.global.left = left;
-            tailspin.global.right = right;
-            tailspin.global.reset = reset;
-            tailspin.global.up = up;
-            tailspin.global.down = down;
+            interpreter.global.forward = forward;
+            interpreter.global.backward = backward;
+            interpreter.global.left = left;
+            interpreter.global.right = right;
+            interpreter.global.reset = reset;
+            interpreter.global.up = up;
+            interpreter.global.down = down;
             
             mySource = CodeMirror.fromTextArea(document.getElementById("source"),
                 {lineNumbers:true, mode:"javascript"});
@@ -66,14 +61,14 @@
             }
             
             // Create an evaluation context that describes the how the code is to be executed.
-            var x = tailspin.createExecutionContext();
+            var x = interpreter.createExecutionContext();
             
             // Asynchronous running is prefered, so that tailspin execution does not block the browser.
             x.asynchronous = true;
             
             // Run the code.
             var source = mySource.getValue();
-            tailspin.evaluateInContext(source, "source", 0, x, returnFn, errorFn, null);
+            interpreter.evaluateInContext(source, "source", 0, x, returnFn, errorFn, null);
         }
         
         

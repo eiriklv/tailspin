@@ -13,7 +13,7 @@ It was built to provide the basis for interesting web-based programming explorat
 ES5.1 Compliance
 ---------------
 
-Tailspin currently passes 99% of the [ECMAScript Language test262](http://test262.ecmascript.org/) test suite.
+Tailspin currently passes 99.9% of the [ECMAScript Language test262](http://test262.ecmascript.org/) test suite.
 
 Reversibility
 ------------
@@ -33,7 +33,7 @@ Usage
 Basic usage for creating an interpreter and running the string `source`:
 
 ```js
-var tailspin = new Interpreter();
+var tailspin = new Tailspin.Interpreter();
 
 // Create an evaluation context that describes the how the code is to be executed.
 var x = tailspin.createExecutionContext();
@@ -42,6 +42,6 @@ var x = tailspin.createExecutionContext();
 tailspin.evaluateInContext(source, "console", 0, x, function(result) {
     console.log(result);
 }, function(result) {
-    console.log("ERROR "+ result);
+    console.error(result);
 }, null);
 ```

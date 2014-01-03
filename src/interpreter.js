@@ -28,20 +28,38 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 
-var Interpreter = function () {
-// Set constants in the local scope.
-eval(Definitions.consts);
+// Outer non-strict code.
 
+// CUT>
+(function () {
+
+// Set constants in the local scope.
+eval(Tailspin.Definitions.consts);
+// <CUT
+
+function nonStrictGetValue(base, name) {
+    return base[name];
+}
+function nonStrictPutValue(base, name, value) {
+    return base[name] = value;
+}
+function nonStrictDeleteValue(base, name) {
+    return delete base[name];
+}
+
+Tailspin.Interpreter =  function () {
+"use strict";
+
+var Definitions = Tailspin.Definitions;
 var GLOBAL_CODE = 0, EVAL_CODE = 1, FUNCTION_CODE = 2;
 
 // Create a new sandbox.
 var exports = {};
-var sandboxExports = new Sandbox(exports);
+var sandboxExports = new Tailspin.Sandbox(exports);
 var sandbox = sandboxExports.sandbox;
 var global = sandboxExports.global;
 var functionInternals = sandboxExports.functionInternals;
 var sandboxError = sandboxExports.sandboxError;
-var sandboxBaseValue = sandboxExports.sandboxBaseValue;
 var sandboxArray = sandboxExports.sandboxArray;
 var newTypeError = sandboxExports.newTypeError;
 var newReferenceError = sandboxExports.newReferenceError;
@@ -50,6 +68,7 @@ var ExecutionContext = sandboxExports.ExecutionContext;
 // Grab useful functions.
 var isPrimitive = sandboxExports.isPrimitive;
 var isObject = sandboxExports.isObject;
+var checkObjectCoercible = sandboxExports.checkObjectCoercible;
 var toObjectCheck = sandboxExports.toObjectCheck;
 var toObject = sandboxExports.toObject;
 var Activation = sandboxExports.Activation;
@@ -58,11 +77,8 @@ var hasInstance = sandboxExports.hasInstance;
 var constructFunction = sandboxExports.constructFunction;
 var callFunction = sandboxExports.callFunction;
 
+var hasDirectProperty = Tailspin.Utility.hasDirectProperty;
 
-// Helper to avoid Object.prototype.hasOwnProperty polluting scope objects.
-function hasDirectProperty(o, p) {
-    return Object.prototype.hasOwnProperty.call(o, p);
-}
 
 function Reference(base, propertyName, node) {
     this.base = base;
@@ -71,7 +87,7 @@ function Reference(base, propertyName, node) {
 }
 
 Reference.prototype.toString = function () {
-    return Decompiler.pp(this.node);
+    return Tailspin.Decompiler.pp(this.node);
 };
 
 // returns true if reference exists
@@ -133,53 +149,75 @@ function prevDeleteValue(base, key, prev) {
     return newPrev;
 }
 
-function getValue(ref, next, thrw, strict, prev) {
-    var value;
+function getValue(x, ref, next, thrw, prev) {
     if (ref instanceof Reference) {
-        if (!ref.base) {
+        if (ref.base === null || ref.base === undefined) {
             thrw(newReferenceError(ref.propertyName + " is not defined",
                                     ref.node.filename, ref.node.lineno), prev);
             return;
         }
+        // Workaround for not defining 'caller' on 'arguments.callee.caller'.
+        else if (typeof ref.base === "function" && ref.propertyName === "caller") {
+            ref.base.caller; // Access it just to make sure we can.
+            next(undefined, prev, ref); // Then return 'undefined' as the value.
+        }
         else {
-            if (strict) {
-                // if we are in strict mode, get the property in a strict function
-                // the browser's javascript will then catch the bad accesses
-                (function() {
-                    "use strict";
-                    value = ref.base[ref.propertyName];
-                })();
+            // Access property descriptor and get the value for the reference.
+            var base = toObject(ref.base);
+            var propDesc = Tailspin.Utility.getPropertyDescriptor(base, ref.propertyName);
+            
+            if (propDesc && propDesc.get) {
+                // Handle getter properties by calling function.
+                var nextGV = function (value, prev) {
+                    next(value, prev, ref);
+                }
+                callFunction(propDesc.get, ref.base, [], x, nextGV, null, null, null, thrw, prev);
             }
             else {
-                value = ref.base[ref.propertyName];
+                var value;
+                if (x.strict) {
+                    // if we are in strict mode, get the property in a strict function
+                    // the browser's javascript will then catch the bad accesses
+                    value = base[ref.propertyName];
+                }
+                else {
+                    // otherwise access using a non-strict function
+                    value = nonStrictGetValue(base, ref.propertyName);
+                }
+                next(value, prev, ref);
             }
         }
     }
     else {
-        value = ref;
+        next(ref, prev, ref);
     }
-    
-    next(value, prev, ref);
 }
 
 function putValue(x, ref, value, refNode, strict, next, thrw, prev) {
     if (ref instanceof Reference) {
-        var base = (ref.base || global);
-        var newPrev = prevSaveValue(base, ref.propertyName, prev);
+        var base = (toObject(ref.base) || global);
+        var propDesc = Tailspin.Utility.getPropertyDescriptor(base, ref.propertyName);
         
-        var result;
-        if (strict) {
-            // if we are in strict mode, run the assignment in a strict function
-            // the browser's javascript will then catch the bad assignments
-            (function() {
-                "use strict";
-                result = base[ref.propertyName] = value;
-            })();
+        if (propDesc && propDesc.set) {
+            // Handle setter properties by calling function.
+            callFunction(propDesc.set, base, [value], x, next, null, null, null, thrw, prev);
         }
         else {
-            result = base[ref.propertyName] = value;
+            var newPrev = prevSaveValue(base, ref.propertyName, prev);
+            var result;
+            
+            if (strict) {
+                // if we are in strict mode, run the assignment in a strict function
+                // the browser's javascript will then catch the bad assignments
+                result = base[ref.propertyName] = value;
+            }
+            else {
+                // otherwise access using a non-strict function
+                result = nonStrictPutValue(base, ref.propertyName, value);
+            }
+            
+            next(result, newPrev);
         }
-        next(result, newPrev);
     }
     else {
         thrw(newReferenceError("Invalid assignment left-hand side",
@@ -190,10 +228,10 @@ function putValue(x, ref, value, refNode, strict, next, thrw, prev) {
 function executeGV(n, x, next, ret, cont, brk, thrw, prev) {
     // execute then getValue of the returned var then continue
     execute(n, x, function(r, prev) {
-            getValue(r, next, thrw, x.strict, prev);
+            getValue(x, r, next, thrw, prev);
         },
         function(r, prev) {
-            getValue(r, ret, thrw, x.strict, prev);
+            getValue(x, r, ret, thrw, prev);
         }, cont, brk, thrw, prev);
 }
 
@@ -232,11 +270,12 @@ executeFunctions[FUNCTION] = function exFunction(n, x, next, ret, cont, brk, thr
     var newFn;
     
     // Define this function in its own scope.
-    if (n.functionForm !== Parser.DECLARED_FORM) {
-        if (!n.name || n.functionForm === Parser.STATEMENT_FORM) {
+    if (n.functionForm !== Tailspin.Parser.DECLARED_FORM) {
+        if (!n.name || n.functionForm === Tailspin.Parser.STATEMENT_FORM) {
             newFn = newFunction(n, x);
-            if (n.functionForm === Parser.STATEMENT_FORM) {
-                Definitions.defineProperty(x.scope.object, n.name, newFn, true);
+            if (n.functionForm === Tailspin.Parser.STATEMENT_FORM) {
+                Object.defineProperty(x.scope.object, n.name,
+                    {value:newFn, writable:true, configurable:false, enumerable:true});
             }
         }
         else {
@@ -244,7 +283,8 @@ executeFunctions[FUNCTION] = function exFunction(n, x, next, ret, cont, brk, thr
             x.scope = {object: t, parent: x.scope};
             try {
                 newFn = newFunction(n, x);
-                Definitions.defineProperty(t, n.name, newFn, true, true);
+                Object.defineProperty(t, n.name,
+                    {value:newFn, writable:false, configurable:false, enumerable:true});
             }
             finally {
                 x.scope = x.scope.parent;
@@ -278,7 +318,14 @@ executeFunctions[SCRIPT] = function exScript(n, x, next, ret, cont, brk, thrw, p
         // But for reversible code we define all fns as deletable.
         // All function declarations start as the function.
         var deletable = prev || x.type === EVAL_CODE;
-        Object.defineProperty(t, name, {value:f, configurable:deletable, writable:true});
+        
+        // Special handling for parameters of Activations which are defined as getter/setters.
+        if (hasDirectProperty(t, name)) {
+            t[name] = f;
+        }
+        else {
+            Object.defineProperty(t, name, {value:f, configurable:deletable, writable:true});
+        }
         
         prev = delPrev(t, name, prev);
     }
@@ -652,7 +699,8 @@ executeFunctions[TRY] = function exTry(n, x, next, ret, cont, brk, thrw, prev) {
         if (n.catchClauses.length === 1) {
             var t = n.catchClauses[0];
             x.scope = {object: new Activation(), parent: x.scope};
-            Definitions.defineProperty(x.scope.object, t.varName, e, true);
+            Object.defineProperty(x.scope.object, t.varName,
+                {value:e, writable:true, configurable:false, enumerable:true});
             
             execute(t.block, x, function(ignored, prev) {
                     x.scope = x.scope.parent;
@@ -720,7 +768,7 @@ executeFunctions[VAR] = function exVar(n, x, next, ret, cont, brk, thrw, prev) {
                         // Create a function to reverse this assignment.
                         var newPrev = prevSaveValue(s.object, name, prev);
                         // Set the new value.
-                        s.object[name] = value;
+                        nonStrictPutValue(s.object, name, value);
                         
                         // Continue the loop, incrementing i.
                         forLoop(i+1, newPrev);
@@ -802,7 +850,7 @@ executeFunctions[ASSIGN] = function exAssign(n, x, next, ret, cont, brk, thrw, p
         }
         
         if (t) {
-            getValue(r, assign, thrw, x.strict, prev);
+            getValue(x, r, assign, thrw, prev);
         }
         else {
             // in strict mode ensure we are not assigning to a new reference
@@ -939,13 +987,12 @@ executeFunctions[DELETE] = function exDelete(n, x, next, ret, cont, brk, thrw, p
                 newPrev = prevSaveValue(t.base, t.propertyName, prev);
                 
                 if (x.strict) {
-                    (function() {
-                        "use strict";
-                        v = delete t.base[t.propertyName];
-                    })();
+                    // already in strict code, just delete normally
+                    v = delete t.base[t.propertyName];
                 }
                 else {
-                    v = delete t.base[t.propertyName];
+                    // otherwise delete using a non-strict function
+                    v = nonStrictDeleteValue(t.base, t.propertyName);
                 }
             }
             next(v, newPrev);
@@ -961,11 +1008,18 @@ executeFunctions[VOID] = function exVoid(n, x, next, ret, cont, brk, thrw, prev)
 };
 
 executeFunctions[TYPEOF] = function exTypeof(n, x, next, ret, cont, brk, thrw, prev) {
-    execute(n.children[0], x, function(t, prev) {
+     execute(n.children[0], x, function(t, prev) {
             if (t instanceof Reference) {
-                t = t.base ? t.base[t.propertyName] : undefined;
+                if (t.base) {
+                    getValue(x, t, function(v, prev) {next(typeof v, prev);}, thrw, prev);//? t.base[t.propertyName] : undefined;
+                }
+                else {
+                    next("undefined", prev);
+                }
             }
-            next(typeof t, prev);
+            else {
+                next(typeof t, prev);
+            }
         }, ret, cont, brk, thrw, prev);
 };
 
@@ -994,18 +1048,21 @@ executeFunctions[DECREMENT] = executeFunctions[INCREMENT];
 executeFunctions[DOT] = function exDot(n, x, next, ret, cont, brk, thrw, prev) {
     var c = n.children;
     executeGV(c[0], x, function(t, prev, ref) {
-            var u = c[1].value;
-            var v = new Reference(toObjectCheck(t, ref, c[0]), u, n);
-            next(v, prev);
+            var propName = c[1].value;
+            checkObjectCoercible(t, ref, c[0]);
+            var newRef = new Reference(t, propName, n);
+            next(newRef, prev);
         }, ret, cont, brk, thrw, prev);
 };
 
 executeFunctions[INDEX] = function exIndex(n, x, next, ret, cont, brk, thrw, prev) {
     var c = n.children;
     executeGV(c[0], x, function(t, prev, ref) {
-      executeGV(c[1], x, function(u, prev) {
-        next(new Reference(toObjectCheck(t, ref, c[0]), String(u), n), prev);
-      }, ret, cont, brk, thrw, prev);
+        executeGV(c[1], x, function(u, prev) {
+            checkObjectCoercible(t, ref, c[0]);
+            var newRef = new Reference(t, String(u), n);
+            next(newRef, prev);
+        }, ret, cont, brk, thrw, prev);
     }, ret, cont, brk, thrw, prev);
 };
 
@@ -1086,7 +1143,8 @@ executeFunctions[NEW] = function exNew(n, x, next, ret, cont, brk, thrw, prev) {
         
         if (n.type === NEW) {// fixme: what is this???
             var a = new sandbox.Object();
-            Definitions.defineProperty(a, "length", 0, false, false, true);
+            Object.defineProperty(a, "length",
+                {value:0, writable:true, configurable:true, enumerable:false});
             constructFn(a, prev);
         } else {
             // Execute the arguments then call constructFn.
@@ -1145,7 +1203,9 @@ executeFunctions[OBJECT_INIT] = function exObjectInit(n, x, next, ret, cont, brk
                     // Set the property on newObject.
                     var key = property.children[0].value;
                     var newPrev = prevSaveValue(newObject, key, prev);
-                    newObject[key] = value;
+                    
+                    Object.defineProperty(newObject, key,
+                        {value:value, enumerable:true, configurable:true, writable:true});
                     
                     // Continue looping.
                     forLoop(i+1, newPrev);
@@ -1203,7 +1263,7 @@ executeFunctions[IDENTIFIER] = function exIdentifier(n, x, next, ret, cont, brk,
 };
 
 executeFunctions[NUMBER] = function exValue(n, x, next, ret, cont, brk, thrw, prev) {
-    next(sandboxBaseValue(n.value), prev);
+    next(n.value, prev);
 };
 
 executeFunctions[STRING] = executeFunctions[NUMBER];
@@ -1280,17 +1340,12 @@ function evaluateInContext(s, f, l, x, ret, thrw, prev) {
     
     try {
         // Parse the string into an AST.
-        var ast = Parser.parse(s, f, l);
+        var ast = Tailspin.Parser.parse(s, f, l, false, sandbox);
         
-        if (ast.hasModules) {
-            thrw("Modules unsupported.", prev);
-        }
-        else {
-            x.strict = !!ast.strict;
-            x.execute(ast, function(v, prev) {
-                    ret(x.result, prev);
-                }, ret, null, null, thrw, prev);
-        }
+        x.strict = !!ast.strict;
+        x.execute(ast, function(v, prev) {
+                ret(x.result, prev);
+            }, ret, null, null, thrw, prev);
     }
     catch (e) {
         // Returns any native exception via the thrw continuation.
@@ -1325,3 +1380,6 @@ exports.createFunctionExecutionContext = createFunctionExecutionContext;
 
 return exports;
 };
+// CUT>
+})();
+// <CUT

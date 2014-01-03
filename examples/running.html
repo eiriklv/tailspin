@@ -5,24 +5,19 @@
     
     <link rel="stylesheet" type="text/css" href="examples.css">
     
-    <script type="text/javascript" src="../src/definitions.js"></script>
-    <script type="text/javascript" src="../src/lexer.js"></script>
-    <script type="text/javascript" src="../src/parser.js"></script>
-    <script type="text/javascript" src="../src/decompiler.js"></script>
-    <script type="text/javascript" src="../src/sandbox.js"></script>
-    <script type="text/javascript" src="../src/interpreter.js"></script>
+    <script type="text/javascript" src="../tailspin.js"></script>
     
     <script src="lib/codemirror-compressed.js"></script>
     <link rel="stylesheet" href="lib/codemirror.css">
     
     <script type="text/javascript">
-        var tailspin;
+        var interpreter;
         var myConsole;
         var myConsole_lastLogRange;
         
         function setup() {
             // Create a new interpreter.
-            tailspin = new Interpreter();
+            interpreter = new Tailspin.Interpreter();
             
             myConsole = CodeMirror.fromTextArea(document.getElementById("console"), {
                 mode: "text",
@@ -49,7 +44,7 @@
             });
             
             // Add a single global 'console' that has a log function.
-            tailspin.global.console = {
+            interpreter.global.console = {
                 log:function(msg) {consoleLog(msg, 'log');}
             };
             consoleLog("Welcome to Tailspin...");
@@ -75,13 +70,13 @@
             }
             
             // Create an evaluation context that describes the how the code is to be executed.
-            var x = tailspin.createExecutionContext();
+            var x = interpreter.createExecutionContext();
             
             // Asynchronous running is prefered, so that tailspin execution does not block the browser.
             x.asynchronous = true;
             
             // Run the code.
-            tailspin.evaluateInContext(source, "console", 0, x, returnFn, errorFn, null);
+            interpreter.evaluateInContext(source, "console", 0, x, returnFn, errorFn, null);
         }
     </script>
 </head>

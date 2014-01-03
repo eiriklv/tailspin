@@ -48,23 +48,29 @@
  * Lexical scanner.
  */
 
-var Lexer = (function () {
-// Set constants in the local scope.
-eval(Definitions.consts);
+
+Tailspin.Lexer = (function () {
+"use strict";
+var Definitions = Tailspin.Definitions;
+var tk = Definitions.tokenIds;
 
 // Build up a trie of operator tokens.
 var opTokens = {};
 for (var op in Definitions.opTypeNames) {
-    if (op === '\n' || op === '.')
-        continue;
-
-    var node = opTokens;
-    for (var i = 0; i < op.length; i++) {
-        var ch = op[i];
-        if (!(ch in node))
-            node[ch] = {};
-        node = node[ch];
-        node.op = op;
+    if (Definitions.opTypeNames.hasOwnProperty(op)) {
+        if (op === '\n' || op === '.') {
+            continue;
+        }
+        
+        var node = opTokens;
+        for (var i = 0; i < op.length; i++) {
+            var ch = op[i];
+            if (!node.hasOwnProperty(ch)) {
+                node[ch] = {};
+            }
+            node = node[ch];
+            node.op = op;
+        }
     }
 }
 
@@ -116,26 +122,26 @@ function isIdentifier(str) {
 }
 
 /*
- * Tokenizer :: (source, filename, line number, boolean) -> Tokenizer
+ * Tokenizer :: (source, filename, line number, boolean, sandbox) -> Tokenizer
  */
-function Tokenizer(s, f, l, allowHTMLComments) {
+function Tokenizer(source, filename, lineno, sandbox) {
     this.cursor = 0;
-    this.source = String(s);
+    this.source = String(source);
     this.tokens = [];
     this.tokenIndex = 0;
     this.lookahead = 0;
     this.scanNewlines = false;
-    this.filename = f || "";
-    this.lineno = l || 1;
-    this.allowHTMLComments = allowHTMLComments;
+    this.filename = filename || "";
+    this.lineno = lineno || 1;
     this.blockComments = null;
+    this.sandbox = sandbox || (new Function("return this"))();
 }
 
 Tokenizer.prototype = {
     get done() {
         // We need to set scanOperand to true here because the first thing
         // might be a regexp.
-        return this.peek(true) === END;
+        return this.peek(true) === tk.END;
     },
 
     get token() {
@@ -154,15 +160,13 @@ Tokenizer.prototype = {
         return this.token;
     },
 
-    peek: function (scanOperand) {
+    peek: function (scanOperand, keywordIsName) {
         var tt, next;
         if (this.lookahead) {
             next = this.tokens[(this.tokenIndex + this.lookahead) & 3];
-            tt = (this.scanNewlines && next.lineno !== this.lineno)
-                ? NEWLINE
-                : next.type;
+            tt = (this.scanNewlines && next.lineno !== this.lineno) ? tk.NEWLINE : next.type;
         } else {
-            tt = this.get(scanOperand);
+            tt = this.get(scanOperand, keywordIsName);
             this.unget();
         }
         return tt;
@@ -198,8 +202,10 @@ Tokenizer.prototype = {
 
             if (ch === '\n' && !this.scanNewlines) {
                 this.lineno++;
-            } else if (ch === '/' && next === '*') {
+            }
+            else if (ch === '/' && next === '*') {
                 var commentStart = ++this.cursor;
+                var commentEnd = commentStart;
                 for (;;) {
                     ch = input[this.cursor++];
                     if (ch === undefined)
@@ -208,7 +214,7 @@ Tokenizer.prototype = {
                     if (ch === '*') {
                         next = input[this.cursor];
                         if (next === '/') {
-                            var commentEnd = this.cursor - 1;
+                            commentEnd = this.cursor - 1;
                             this.cursor++;
                             break;
                         }
@@ -217,10 +223,8 @@ Tokenizer.prototype = {
                     }
                 }
                 this.blockComments.push(input.substring(commentStart, commentEnd));
-            } else if ((ch === '/' && next === '/') ||
-                       (this.allowHTMLComments && ch === '<' && next === '!' &&
-                        input[this.cursor + 1] === '-' && input[this.cursor + 2] === '-' &&
-                        (this.cursor += 2))) {
+            }
+            else if (ch === '/' && next === '/') {
                 this.cursor++;
                 for (;;) {
                     ch = input[this.cursor++];
@@ -242,7 +246,8 @@ Tokenizer.prototype = {
                         break;
                     }
                 }
-            } else if (!(ch in Definitions.whitespace)) {
+            }
+            else if (!(Definitions.whitespace.hasOwnProperty(ch))) {
                 this.cursor--;
                 return;
             }
@@ -276,7 +281,7 @@ Tokenizer.prototype = {
 
     lexZeroNumber: function (ch) {
         var token = this.token, input = this.source;
-        token.type = NUMBER;
+        token.type = tk.NUMBER;
 
         ch = input[this.cursor++];
         if (ch === '.') {
@@ -286,9 +291,9 @@ Tokenizer.prototype = {
             this.cursor--;
 
             this.lexExponent();
-            token.value = parseFloat(
-                input.substring(token.start, this.cursor));
-        } else if (ch === 'x' || ch === 'X') {
+            token.value = this.sandbox.parseFloat(input.substring(token.start, this.cursor));
+        }
+        else if (ch === 'x' || ch === 'X') {
             do {
                 ch = input[this.cursor++];
             } while ((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') ||
@@ -299,8 +304,9 @@ Tokenizer.prototype = {
                 throw this.newSyntaxError("At least one digit must occur after 0x");
             }
 
-            token.value = parseInt(input.substring(token.start, this.cursor));
-        } else if (ch >= '0' && ch <= '9') {
+            token.value = this.sandbox.parseInt(input.substring(token.start, this.cursor));
+        }
+        else if (ch >= '0' && ch <= '9') {
             if (this.parser.x.strictMode) {
                 throw this.newSyntaxError("Octal escapes are forbidden in strict mode");
             }
@@ -311,8 +317,9 @@ Tokenizer.prototype = {
             } while (ch >= '0' && ch <= '9');
             this.cursor--;
 
-            token.value = parseInt(input.substring(token.start, this.cursor));
-        } else {
+            token.value = this.sandbox.parseInt(input.substring(token.start, this.cursor));
+        }
+        else {
             this.cursor--;
             this.lexExponent();     // 0E1, &c.
             token.value = 0;
@@ -321,7 +328,7 @@ Tokenizer.prototype = {
 
     lexNumber: function (ch) {
         var token = this.token, input = this.source;
-        token.type = NUMBER;
+        token.type = tk.NUMBER;
 
         var floating = false;
         do {
@@ -338,7 +345,7 @@ Tokenizer.prototype = {
         floating = floating || exponent;
 
         var str = input.substring(token.start, this.cursor);
-        token.value = floating ? parseFloat(str) : parseInt(str);
+        token.value = floating ? this.sandbox.parseFloat(str) : this.sandbox.parseInt(str);
     },
 
     lexDot: function (ch) {
@@ -352,11 +359,10 @@ Tokenizer.prototype = {
 
             this.lexExponent();
 
-            token.type = NUMBER;
-            token.value = parseFloat(
-                input.substring(token.start, this.cursor));
+            token.type = tk.NUMBER;
+            token.value = this.sandbox.parseFloat(input.substring(token.start, this.cursor));
         } else {
-            token.type = DOT;
+            token.type = tk.DOT;
             token.assignOp = null;
             token.value = '.';
         }
@@ -364,7 +370,7 @@ Tokenizer.prototype = {
 
     lexString: function (ch) {
         var token = this.token, input = this.source;
-        token.type = STRING;
+        token.type = tk.STRING;
 
         var hasEscapes = false;
         var delim = ch;
@@ -395,29 +401,26 @@ Tokenizer.prototype = {
                 throw this.newSyntaxError("Unterminated string literal");
             }
         }
-
-        if (hasEscapes) {
-            if (this.parser.x.strictMode) {
-                token.value = eval('"use strict"; '+input.substring(token.start, this.cursor));
-            }
-            else {
-                token.value = eval(input.substring(token.start, this.cursor));
-            }
+        
+        if (this.parser.x.strictMode) {
+            token.value = this.sandbox.eval('"use strict"; '+input.substring(token.start, this.cursor));
         }
         else {
-            token.value = input.substring(token.start + 1, this.cursor - 1);
+            // Always evaluate the string in the sandbox, to convert the string to a sandbox string.
+            token.value = this.sandbox.eval(input.substring(token.start, this.cursor));
         }
     },
 
     lexRegExp: function (ch) {
         var token = this.token, input = this.source;
-        token.type = REGEXP;
+        token.type = tk.REGEXP;
 
         do {
             ch = input[this.cursor++];
             if (ch === '\\') {
                 this.cursor++;
-            } else if (ch === '[') {
+            }
+            else if (ch === '[') {
                 do {
                     if (ch === undefined)
                         throw this.newSyntaxError("Unterminated character class");
@@ -427,7 +430,8 @@ Tokenizer.prototype = {
 
                     ch = input[this.cursor++];
                 } while (ch !== ']');
-            } else if (ch === undefined) {
+            }
+            else if (ch === undefined) {
                 throw this.newSyntaxError("Unterminated regex");
             }
         } while (ch !== '/');
@@ -438,7 +442,7 @@ Tokenizer.prototype = {
 
         this.cursor--;
 
-        token.value = eval(input.substring(token.start, this.cursor));
+        token.value = this.sandbox.eval(input.substring(token.start, this.cursor));
     },
 
     lexOp: function (ch) {
@@ -448,11 +452,11 @@ Tokenizer.prototype = {
         // for only 3 characters...
         var node = opTokens[ch];
         var next = input[this.cursor];
-        if (next in node) {
+        if (node.hasOwnProperty(next)) {
             node = node[next];
             this.cursor++;
             next = input[this.cursor];
-            if (next in node) {
+            if (node.hasOwnProperty(next)) {
                 node = node[next];
                 this.cursor++;
                 next = input[this.cursor];
@@ -462,7 +466,7 @@ Tokenizer.prototype = {
         var op = node.op;
         if (Definitions.assignOps[op] && input[this.cursor] === '=') {
             this.cursor++;
-            token.type = ASSIGN;
+            token.type = tk.ASSIGN;
             token.assignOp = Definitions.tokenIds[Definitions.opTypeNames[op]];
             op += '=';
         } else {
@@ -482,37 +486,23 @@ Tokenizer.prototype = {
             id += ch;
         }
 
-        token.type = IDENTIFIER;
+        token.type = tk.IDENTIFIER;
         token.value = id;
 
-        if (keywordIsName)
+        if (keywordIsName) {
             return;
-        
-        /*if (Definitions.reservedKeywords.indexOf(id) !== -1) {
-            throw this.newSyntaxError("Use of reserved word '"+id+"'");
-        }*/
-
-        var kw;
-
-        if (this.parser.mozillaMode) {
-            kw = Definitions.mozillaKeywords[id];
-            if (kw) {
-                token.type = kw;
-                return;
-            }
         }
 
         if (this.parser.x.strictMode) {
-            kw = Definitions.strictKeywords[id];
-            if (kw) {
-                token.type = kw;
+            if (Definitions.strictKeywords.hasOwnProperty(id)) {
+                token.type = Definitions.strictKeywords[id];
                 return;
             }
         }
 
-        kw = Definitions.keywords[id];
-        if (kw)
-            token.type = kw;
+        if (Definitions.keywords.hasOwnProperty(id)) {
+            token.type = Definitions.keywords[id];
+        }
     },
 
     /*
@@ -524,12 +514,21 @@ Tokenizer.prototype = {
     get: function (scanOperand, keywordIsName) {
         var token;
         while (this.lookahead) {
-            --this.lookahead;
-            this.tokenIndex = (this.tokenIndex + 1) & 3;
-            token = this.tokens[this.tokenIndex];
-            if (token.type !== NEWLINE || this.scanNewlines) {
-                if (keywordIsName && token.value in Definitions.keywords) {
-                    return IDENTIFIER;
+            var newTokenIndex = (this.tokenIndex + 1) & 3;
+            token = this.tokens[newTokenIndex];
+            
+            if (scanOperand && token.value === '/') {
+                // Need to scan for regex instead of division.
+                this.discardLookahead();
+                break;
+            }
+            
+            this.lookahead--;
+            this.tokenIndex = newTokenIndex;
+            
+            if (token.type !== tk.NEWLINE || this.scanNewlines) {
+                if (keywordIsName && Definitions.keywords.hasOwnProperty(token.value)) {
+                    return tk.IDENTIFIER;
                 }
                 return token.type;
             }
@@ -539,12 +538,15 @@ Tokenizer.prototype = {
 
         this.tokenIndex = (this.tokenIndex + 1) & 3;
         token = this.tokens[this.tokenIndex];
-        if (!token)
+        if (!token) {
             this.tokens[this.tokenIndex] = token = {};
+        }
 
         var input = this.source;
-        if (this.cursor >= input.length)
-            return token.type = END;
+        if (this.cursor >= input.length) {
+            token.type = tk.END;
+            return token.type;
+        }
 
         token.start = this.cursor;
         token.lineno = this.lineno;
@@ -555,7 +557,7 @@ Tokenizer.prototype = {
             this.lexIdent(ich, keywordIsName);
         } else if (scanOperand && ch === '/') {
             this.lexRegExp(ch);
-        } else if (ch in opTokens) {
+        } else if (opTokens.hasOwnProperty(ch)) {
             this.lexOp(ch);
         } else if (ch === '.') {
             this.lexDot(ch);
@@ -565,10 +567,10 @@ Tokenizer.prototype = {
             this.lexZeroNumber(ch);
         } else if (ch === '"' || ch === "'") {
             this.lexString(ch);
-        } else if (this.scanNewlines && Definitions.newlines[ch]) {
+        } else if (this.scanNewlines && Definitions.newlines.hasOwnProperty(ch)) {
             // if this was a \r, look for \r\n
             if (ch === '\r' && input[this.cursor] === '\n') this.cursor++;
-            token.type = NEWLINE;
+            token.type = tk.NEWLINE;
             token.value = '\n';
             this.lineno++;
         } else {
@@ -588,14 +590,23 @@ Tokenizer.prototype = {
         if (++this.lookahead === 4) throw "PANIC: too much lookahead!";
         this.tokenIndex = (this.tokenIndex - 1) & 3;
     },
+    
+    discardLookahead: function () {
+        while (this.lookahead) {
+            --this.lookahead;
+            this.tokenIndex = (this.tokenIndex + 1) & 3;
+            var token = this.tokens[this.tokenIndex];
+            this.cursor = token.start;
+        }
+    },
 
     newError: function (errorClass, m) {
         m = "["+(this.filename ? this.filename + ":" : "") + this.lineno + "] " + m;
         var e = new errorClass(m, this.filename, this.lineno);
         e.source = this.source;
         e.sourceLine = this.lineno;
-        e.cursor = this.lookahead
-            ? this.tokens[(this.tokenIndex + this.lookahead) & 3].start
+        e.cursor = this.lookahead ?
+              this.tokens[(this.tokenIndex + this.lookahead) & 3].start
             : this.cursor;
         return e;
     },
@@ -616,6 +627,7 @@ Tokenizer.prototype = {
         var input = this.source;
         if (this.cursor >= input.length) return null;
         var ch = input[this.cursor];
+        var chInc = 1;
 
         // first check for \u escapes
         if (ch === '\\' && input[this.cursor+1] === 'u') {
@@ -627,11 +639,13 @@ Tokenizer.prototype = {
             } catch (ex) {
                 return null;
             }
-            this.cursor += 5;
+            chInc = 6;
         }
 
         var valid = isValidIdentifierChar(ch, first);
-        if (valid) this.cursor++;
+        if (valid) {
+            this.cursor += chInc;
+        }
         return (valid ? ch : null);
     },
 };

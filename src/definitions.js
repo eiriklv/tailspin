@@ -49,7 +49,12 @@
  * separately to take advantage of the simple switch-case constant propagation
  * done by SpiderMonkey.
  */
-var Definitions = (function () {
+
+var Tailspin = {};
+
+Tailspin.Definitions = (function () {
+"use strict";
+
 var tokens = [
     // End of source.
     "END",
@@ -80,11 +85,7 @@ var tokens = [
     // Nonterminal tree node type codes.
     "SCRIPT", "BLOCK", "LABEL", "FOR_IN", "CALL", "NEW_WITH_ARGS", "INDEX",
     "ARRAY_INIT", "OBJECT_INIT", "PROPERTY_INIT", "GETTER", "SETTER",
-    "GROUP", "LIST", "LET_BLOCK", "ARRAY_COMP", "GENERATOR", "COMP_TAIL",
-
-    // Contextual keywords.
-    "IMPLEMENTS", "INTERFACE", "LET", "MODULE", "PACKAGE", "PRIVATE",
-    "PROTECTED", "PUBLIC", "STATIC", "USE", "YIELD",
+    "GROUP", "LIST", "ARRAY_COMP", "COMP_TAIL",
 
     // Terminals.
     "IDENTIFIER", "NUMBER", "STRING", "REGEXP",
@@ -102,10 +103,12 @@ var tokens = [
     "this", "throw", "true", "try", "typeof",
     "var", "void",
     "while", "with",
+    
+    // Reserved keywords.
+    "class", "extends", "enum", "super"
 ];
 
 var strictKeywords = {
-    __proto__: null,
     "implements": true,
     "interface": true,
     "let": true,
@@ -125,17 +128,11 @@ var statementStartTokens = [
     "debugger", "do",
     "for",
     "if",
-    "let",
     "return",
     "switch",
     "throw", "try",
     "var",
-    "yield",
-    "while", "with",
-];
-
-var reservedKeywords = [
-    "class", "extends", "enum", "super"
+    "while", "with"
 ];
 
 // Whitespace characters (see ECMA-262 7.2)
@@ -209,476 +206,50 @@ var opTypeNames = {
     ')':    "RIGHT_PAREN"
 };
 
-// Hash of keyword identifier to tokens index.  NB: we must null __proto__ to
-// avoid toString, etc. namespace pollution.
-var keywords = {__proto__: null};
-var isKeyword = [];
-var mozillaKeywords = {__proto__: null};
+// Hash of keyword identifier to tokens index.
+var keywords = {};
 
 // Define const END, etc., based on the token names.  Also map name to index.
 var tokenIds = {};
 
-var hostSupportsEvalConst = (function() {
-    try {
-        return eval("(function(s) { eval(s); return x })('const x = true;')");
-    } catch (e) {
-        return false;
-    }
-})();
-
 // Building up a string to be eval'd in different contexts.
-var consts = hostSupportsEvalConst ? "const " : "var ";
-for (var i = 0, j = tokens.length; i < j; i++) {
-    if (i > 0)
+var consts = "var ";
+for (var i = 0, c = tokens.length; i < c; i++) {
+    if (i > 0) {
         consts += ", ";
+    }
+    
     var t = tokens[i];
     var name;
     if (/^[a-z]/.test(t)) {
         name = t.toUpperCase();
-        if (name === "LET" || name === "YIELD")
-            mozillaKeywords[name] = i;
-        if (strictKeywords[name])
+        if (strictKeywords.hasOwnProperty(name)) {
             strictKeywords[name] = i;
+        }
         keywords[t] = i;
-        isKeyword[i] = true;
-    } else {
+    }
+    else {
         name = (/^\W/.test(t) ? opTypeNames[t] : t);
     }
+    
     consts += name + " = " + i;
     tokenIds[name] = i;
     tokens[t] = i;
 }
 consts += ";";
 
-var isStatementStartCode = {__proto__: null};
-for (i = 0, j = statementStartTokens.length; i < j; i++)
+var isStatementStartCode = {};
+for (i = 0, c = statementStartTokens.length; i < c; i++) {
     isStatementStartCode[keywords[statementStartTokens[i]]] = true;
+}
 
 // Map assignment operators to their indexes in the tokens array.
-var assignOps = ['|', '^', '&', '<<', '>>', '>>>', '+', '-', '*', '/', '%'];
+var assignOps = {};
+var assignArray = ['|', '^', '&', '<<', '>>', '>>>', '+', '-', '*', '/', '%'];
 
-for (i = 0, j = assignOps.length; i < j; i++) {
-    t = assignOps[i];
+for (i = 0, c = assignArray.length; i < c; i++) {
+    var t = assignArray[i];
     assignOps[t] = tokens[t];
-}
-
-function defineGetter(obj, prop, fn, dontDelete, dontEnum) {
-    Object.defineProperty(obj, prop,
-                          { get: fn, configurable: !dontDelete, enumerable: !dontEnum });
-}
-
-function defineGetterSetter(obj, prop, getter, setter, dontDelete, dontEnum) {
-    Object.defineProperty(obj, prop, {
-        get: getter,
-        set: setter,
-        configurable: !dontDelete,
-        enumerable: !dontEnum
-    });
-}
-
-function defineMemoGetter(obj, prop, fn, dontDelete, dontEnum) {
-    Object.defineProperty(obj, prop, {
-        get: function() {
-            var val = fn();
-            defineProperty(obj, prop, val, dontDelete, true, dontEnum);
-            return val;
-        },
-        configurable: true,
-        enumerable: !dontEnum
-    });
-}
-
-function defineProperty(obj, prop, val, dontDelete, readOnly, dontEnum) {
-    Object.defineProperty(obj, prop,
-                          { value: val, writable: !readOnly, configurable: !dontDelete,
-                            enumerable: !dontEnum });
-}
-
-// Returns true if fn is a native function.  (Note: SpiderMonkey specific.)
-function isNativeCode(fn) {
-    // Relies on the toString method to identify native code.
-    return ((typeof fn) === "function") && fn.toString().match(/\[native code\]/);
-}
-
-var Fpapply = Function.prototype.apply;
-
-function apply(f, o, a) {
-    return Fpapply.call(f, [o].concat(a));
-}
-
-var applyNew;
-
-// ES5's bind is a simpler way to implement applyNew
-if (Function.prototype.bind) {
-    applyNew = function applyNew(f, a) {
-        return new (f.bind.apply(f, [,].concat(Array.prototype.slice.call(a))))();
-    };
-} else {
-    applyNew = function applyNew(f, a) {
-        switch (a.length) {
-          case 0:
-            return new f();
-          case 1:
-            return new f(a[0]);
-          case 2:
-            return new f(a[0], a[1]);
-          case 3:
-            return new f(a[0], a[1], a[2]);
-          default:
-            var argStr = "a[0]";
-            for (var i = 1, n = a.length; i < n; i++)
-                argStr += ",a[" + i + "]";
-            return eval("new f(" + argStr + ")");
-        }
-    };
-}
-
-function getPropertyDescriptor(obj, name) {
-    while (obj) {
-        if (({}).hasOwnProperty.call(obj, name))
-            return Object.getOwnPropertyDescriptor(obj, name);
-        obj = Object.getPrototypeOf(obj);
-    }
-}
-
-function getPropertyNames(obj) {
-    var table = Object.create(null, {});
-    while (obj) {
-        var names = Object.getOwnPropertyNames(obj);
-        for (var i = 0, n = names.length; i < n; i++)
-            table[names[i]] = true;
-        obj = Object.getPrototypeOf(obj);
-    }
-    return Object.keys(table);
-}
-
-function getOwnProperties(obj) {
-    var map = {};
-    for (var name in Object.getOwnPropertyNames(obj))
-        map[name] = Object.getOwnPropertyDescriptor(obj, name);
-    return map;
-}
-
-function blacklistHandler(target, blacklist) {
-    var mask = Object.create(null, {});
-    var redirect = Dict.create(blacklist).mapObject(function(name) { return mask; });
-    return mixinHandler(redirect, target);
-}
-
-function whitelistHandler(target, whitelist) {
-    var catchall = Object.create(null, {});
-    var redirect = Dict.create(whitelist).mapObject(function(name) { return target; });
-    return mixinHandler(redirect, catchall);
-}
-
-/*
- * Mixin proxies break the single-inheritance model of prototypes, so
- * the handler treats all properties as own-properties:
- *
- *                  X
- *                  |
- *     +------------+------------+
- *     |                 O       |
- *     |                 |       |
- *     |  O         O    O       |
- *     |  |         |    |       |
- *     |  O    O    O    O       |
- *     |  |    |    |    |       |
- *     |  O    O    O    O    O  |
- *     |  |    |    |    |    |  |
- *     +-(*)--(w)--(x)--(y)--(z)-+
- */
-
-function mixinHandler(redirect, catchall) {
-    function targetFor(name) {
-        return hasOwn(redirect, name) ? redirect[name] : catchall;
-    }
-
-    function getMuxPropertyDescriptor(name) {
-        var desc = getPropertyDescriptor(targetFor(name), name);
-        if (desc)
-            desc.configurable = true;
-        return desc;
-    }
-
-    function getMuxPropertyNames() {
-        var names1 = Object.getOwnPropertyNames(redirect).filter(function(name) {
-            return name in redirect[name];
-        });
-        var names2 = getPropertyNames(catchall).filter(function(name) {
-            return !hasOwn(redirect, name);
-        });
-        return names1.concat(names2);
-    }
-
-    function enumerateMux() {
-        var result = Object.getOwnPropertyNames(redirect).filter(function(name) {
-            return name in redirect[name];
-        });
-        for (name in catchall) {
-            if (!hasOwn(redirect, name))
-                result.push(name);
-        };
-        return result;
-    }
-
-    function hasMux(name) {
-        return name in targetFor(name);
-    }
-
-    return {
-        getOwnPropertyDescriptor: getMuxPropertyDescriptor,
-        getPropertyDescriptor: getMuxPropertyDescriptor,
-        getOwnPropertyNames: getMuxPropertyNames,
-        defineProperty: function(name, desc) {
-            Object.defineProperty(targetFor(name), name, desc);
-        },
-        "delete": function(name) {
-            var target = targetFor(name);
-            return delete target[name];
-        },
-        // FIXME: ha ha ha
-        fix: function() { },
-        has: hasMux,
-        hasOwn: hasMux,
-        get: function(receiver, name) {
-            var target = targetFor(name);
-            return target[name];
-        },
-        set: function(receiver, name, val) {
-            var target = targetFor(name);
-            target[name] = val;
-            return true;
-        },
-        enumerate: enumerateMux,
-        keys: enumerateMux
-    };
-}
-
-function makePassthruHandler(obj) {
-    // Handler copied from
-    // http://wiki.ecmascript.org/doku.php?id=harmony:proxies&s=proxy%20object#examplea_no-op_forwarding_proxy
-    return {
-        getOwnPropertyDescriptor: function(name) {
-            var desc = Object.getOwnPropertyDescriptor(obj, name);
-
-            // a trapping proxy's properties must always be configurable
-            desc.configurable = true;
-            return desc;
-        },
-        getPropertyDescriptor: function(name) {
-            var desc = getPropertyDescriptor(obj, name);
-
-            // a trapping proxy's properties must always be configurable
-            desc.configurable = true;
-            return desc;
-        },
-        getOwnPropertyNames: function() {
-            return Object.getOwnPropertyNames(obj);
-        },
-        defineProperty: function(name, desc) {
-            Object.defineProperty(obj, name, desc);
-        },
-        "delete": function(name) { return delete obj[name]; },
-        fix: function() {
-            if (Object.isFrozen(obj)) {
-                return getOwnProperties(obj);
-            }
-
-            // As long as obj is not frozen, the proxy won't allow itself to be fixed.
-            return undefined; // will cause a TypeError to be thrown
-        },
-
-        has: function(name) { return name in obj; },
-        hasOwn: function(name) { return ({}).hasOwnProperty.call(obj, name); },
-        get: function(receiver, name) { return obj[name]; },
-
-        // bad behavior when set fails in non-strict mode
-        set: function(receiver, name, val) { obj[name] = val; return true; },
-        enumerate: function() {
-            var result = [];
-            for (name in obj) { result.push(name); };
-            return result;
-        },
-        keys: function() { return Object.keys(obj); }
-    };
-}
-
-var hasOwnProperty = ({}).hasOwnProperty;
-
-function hasOwn(obj, name) {
-    return hasOwnProperty.call(obj, name);
-}
-
-function Dict(table, size) {
-    this.table = table || Object.create(null, {});
-    this.size = size || 0;
-}
-
-Dict.create = function(table) {
-    var init = Object.create(null, {});
-    var size = 0;
-    var names = Object.getOwnPropertyNames(table);
-    for (var i = 0, n = names.length; i < n; i++) {
-        var name = names[i];
-        init[name] = table[name];
-        size++;
-    }
-    return new Dict(init, size);
-};
-
-Dict.prototype = {
-    has: function(x) { return hasOwnProperty.call(this.table, x); },
-    set: function(x, v) {
-        if (!hasOwnProperty.call(this.table, x))
-            this.size++;
-        this.table[x] = v;
-    },
-    get: function(x) { return this.table[x]; },
-    getDef: function(x, thunk) {
-        if (!hasOwnProperty.call(this.table, x)) {
-            this.size++;
-            this.table[x] = thunk();
-        }
-        return this.table[x];
-    },
-    forEach: function(f) {
-        var table = this.table;
-        for (var key in table)
-            f.call(this, key, table[key]);
-    },
-    map: function(f) {
-        var table1 = this.table;
-        var table2 = Object.create(null, {});
-        this.forEach(function(key, val) {
-            table2[key] = f.call(this, val, key);
-        });
-        return new Dict(table2, this.size);
-    },
-    mapObject: function(f) {
-        var table1 = this.table;
-        var table2 = Object.create(null, {});
-        this.forEach(function(key, val) {
-            table2[key] = f.call(this, val, key);
-        });
-        return table2;
-    },
-    toObject: function() {
-        return this.mapObject(function(val) { return val; });
-    },
-    choose: function() {
-        return Object.getOwnPropertyNames(this.table)[0];
-    },
-    remove: function(x) {
-        if (hasOwnProperty.call(this.table, x)) {
-            this.size--;
-            delete this.table[x];
-        }
-    },
-    copy: function() {
-        var table = Object.create(null, {});
-        for (var key in this.table)
-            table[key] = this.table[key];
-        return new Dict(table, this.size);
-    },
-    keys: function() {
-        return Object.keys(this.table);
-    },
-    toString: function() { return "[object Dict]" }
-};
-
-var _WeakMap = typeof WeakMap === "function" ? WeakMap : (function() {
-    // shim for ES6 WeakMap with poor asymptotics
-    function WeakMap(array) {
-        this.array = array || [];
-    }
-
-    function searchMap(map, key, found, notFound) {
-        var a = map.array;
-        for (var i = 0, n = a.length; i < n; i++) {
-            var pair = a[i];
-            if (pair.key === key)
-                return found(pair, i);
-        }
-        return notFound();
-    }
-
-    WeakMap.prototype = {
-        has: function(x) {
-            return searchMap(this, x, function() { return true }, function() { return false });
-        },
-        set: function(x, v) {
-            var a = this.array;
-            searchMap(this, x,
-                      function(pair) { pair.value = v },
-                      function() { a.push({ key: x, value: v }) });
-        },
-        get: function(x) {
-            return searchMap(this, x,
-                             function(pair) { return pair.value },
-                             function() { return null });
-        },
-        "delete": function(x) {
-            var a = this.array;
-            searchMap(this, x,
-                      function(pair, i) { a.splice(i, 1) },
-                      function() { });
-        },
-        toString: function() { return "[object WeakMap]" }
-    };
-
-    return WeakMap;
-})();
-
-// non-destructive stack
-function Stack(elts) {
-    this.elts = elts || null;
-}
-
-Stack.prototype = {
-    push: function(x) {
-        return new Stack({ top: x, rest: this.elts });
-    },
-    top: function() {
-        if (!this.elts)
-            throw new sandbox.Error("empty stack");
-        return this.elts.top;
-    },
-    isEmpty: function() {
-        return this.top === null;
-    },
-    find: function(test) {
-        for (var elts = this.elts; elts; elts = elts.rest) {
-            if (test(elts.top))
-                return elts.top;
-        }
-        return null;
-    },
-    has: function(x) {
-        return Boolean(this.find(function(elt) { return elt === x }));
-    },
-    forEach: function(f) {
-        for (var elts = this.elts; elts; elts = elts.rest) {
-            f(elts.top);
-        }
-    }
-};
-
-if (!Array.prototype.copy) {
-    defineProperty(Array.prototype, "copy",
-                   function() {
-                       var result = [];
-                       for (var i = 0, n = this.length; i < n; i++)
-                           result[i] = this[i];
-                       return result;
-                   }, false, false, true);
-}
-
-if (!Array.prototype.top) {
-    defineProperty(Array.prototype, "top",
-                   function() {
-                       return this.length && this[this.length-1];
-                   }, false, false, true);
 }
 
 var exports = {};
@@ -687,27 +258,10 @@ exports.whitespace = whitespace;
 exports.newlines = newlines;
 exports.opTypeNames = opTypeNames;
 exports.keywords = keywords;
-exports.reservedKeywords = reservedKeywords;
-exports.isKeyword = isKeyword;
-exports.mozillaKeywords = mozillaKeywords;
 exports.strictKeywords = strictKeywords;
 exports.isStatementStartCode = isStatementStartCode;
 exports.tokenIds = tokenIds;
 exports.consts = consts;
 exports.assignOps = assignOps;
-exports.defineGetter = defineGetter;
-exports.defineGetterSetter = defineGetterSetter;
-exports.defineMemoGetter = defineMemoGetter;
-exports.defineProperty = defineProperty;
-exports.isNativeCode = isNativeCode;
-exports.apply = apply;
-exports.applyNew = applyNew;
-exports.mixinHandler = mixinHandler;
-exports.whitelistHandler = whitelistHandler;
-exports.blacklistHandler = blacklistHandler;
-exports.makePassthruHandler = makePassthruHandler;
-exports.Dict = Dict;
-exports.WeakMap = _WeakMap;
-exports.Stack = Stack;
 return exports;
 })();

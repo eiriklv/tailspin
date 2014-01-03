@@ -11,8 +11,28 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 
-var Sandbox = function (interpreter) {
-var functionInternals = new Definitions.WeakMap();
+Tailspin.Sandbox = function (interpreter) {
+"use strict";
+
+var hasDirectProperty = Tailspin.Utility.hasDirectProperty;
+
+// Functions are created as a native javascript function, and an associated internal implementation.
+// When a function is called from Tailspin, the internal version is used with the correct
+// continuations. Called from native code a function created by Tailspin calls the internal version
+// non-asyncronously.
+
+var functionInternals = {
+    get: function (fn) {
+        return fn["__tailspin_internal__"];
+    },
+    set: function (fn, internal) {
+        return Object.defineProperty(fn, "__tailspin_internal__",
+            {value:internal, configurable:true, enumerable:false, writable:true});
+    },
+    has: function (fn) {
+        return hasDirectProperty(fn, "__tailspin_internal__");
+    }
+};
 
 // We create an iframe to sandbox the base objects.
 var nativeBase;
@@ -36,9 +56,9 @@ newFnFunction = function(continuationMarker, fint, x, fnStr) {\n\
     return newFn;\n\
 };\n\
 \n\
-// Turns the array a into an arguments object.\n\
-makeArguments = function(a) {\n\
-    return (function(){return arguments}).apply(undefined, a);\n\
+// Creates an empty arguments object.\n\
+makeArguments = function() {\n\
+    return (function(){return arguments})();\n\
 };\n\
 \n\
 // Apply functions used in order to run functions in the sandbox.\n\
@@ -61,14 +81,16 @@ if (typeof document === "object") {
     
     nativeBase = (new Function("return this"))();
     sandbox = iframe.contentWindow;
-    applyNew = Definitions.applyNew;
 }
 else {
     // Having the sandbox the same as the Tailspin's host is less ideal
     // because there is more chance of polluting the host interpreter.
     // But if we are unable to create an iframe to contain sandboxed versions of
     // Object, Array etc. this will have to do.
-    eval(sandboxFns);
+    
+    // Get non-strict evaluation by calling 'eval()' as a function non named 'eval'.
+    var nonstrictEval = eval;
+    nonstrictEval(sandboxFns);
     
     nativeBase = (new Function("return this"))();
     sandbox = nativeBase;
@@ -129,7 +151,7 @@ functionInternals.set(sandbox.eval, {
         
         var indirectEval = options && options.indirectEval;
         var calledFromStrictCode = indirectEval? false : x.strict;
-        var ast = Parser.parse(a[0], null, null, calledFromStrictCode);
+        var ast = Tailspin.Parser.parse(a[0], null, null, calledFromStrictCode, sandbox);
         
         // create a new execution context for the eval
         var x2 = interpreter.createEvalExecutionContext(calledFromStrictCode);
@@ -165,10 +187,6 @@ functionInternals.set(sandbox.eval, {
             x2.scope = {object: new Object(), parent: x2.scope};
         }
         
-        if (ast.hasModules) {
-            thrw("Modules not supported.");
-        }
-        
         x2.execute(ast, function(v, prev) {next(x2.result, prev);}, null, null, null, thrw, prev);
     },
     construct: function() {}
@@ -196,7 +214,7 @@ functionInternals.set(sandbox.Function, {
 
         // NB: Use the STATEMENT_FORM constant since we don't want to push this
         // function onto the fake compilation context.
-        var f = Parser.parseFunction("anonymous(" + p + ") {" + b + "}", false, Parser.STATEMENT_FORM);
+        var f = Tailspin.Parser.parseFunction("anonymous(" + p + ") {" + b + "}", false, Tailspin.Parser.STATEMENT_FORM, null, null, sandbox);
         
         var x2 = {};
         x2.scope = {object: global, parent: null};
@@ -207,10 +225,12 @@ functionInternals.set(sandbox.Function, {
 
 // Sandboxed functions provide alternative toString functions.
 var oldToStr = sandbox.Function.prototype.toString;
-Object.defineProperty(sandbox.Function.prototype, "toString", {value:function() {
+var newToStr = function() {
     var fint = functionInternals.get(this);
     return fint? fint.toString() : oldToStr.call(this);
-}, enumerable:false, writable:true});
+};
+newToStr.prototype = undefined;
+Object.defineProperty(sandbox.Function.prototype, "toString", {value:newToStr, enumerable:false, writable:true});
 
 functionInternals.set(sandbox.Function.prototype.call, {
     call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
@@ -261,6 +281,44 @@ functionInternals.set(sandbox.Function.prototype.apply, {
     }
 });
 
+functionInternals.set(sandbox.Function.prototype.bind, {
+    call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
+        var fint = functionInternals.get(t);
+        if (fint) {
+            if (typeof t !== "function") {
+                thrw(new sandbox.TypeError("Bind must be called on a function."));
+            }
+            else {
+                // Bind the native function then create a new function internals that also performs
+                // the binding. This ensures interpreter and native calls to the function work.
+                var newFn = sandbox.Function.prototype.bind.apply(t, a);
+                var newFint = new FunctionInternals();
+                functionInternals.set(newFn, newFint);
+                var newArgs = a.slice(1);
+                var newThis = a[0];
+                
+                // Create new 'call' and 'construct' functions that bind 'this' and arguments.
+                newFint.call = function (f, t, a, x, next, ret, cont, brk, thrw, prev, options) {
+                    t = newThis;
+                    a = a instanceof Array? newArgs.concat(a) : newArgs;
+                    fint.call(f, t, a, x, next, ret, cont, brk, thrw, prev, {callViaFunctionApply:true});
+                }
+                newFint.construct = function (fn, a, x, next, ret, cont, brk, thrw, prev) {
+                    a = a instanceof Array? newArgs.concat(a) : newArgs;
+                    fint.construct(fn, a, x, next, ret, cont, brk, thrw, prev);
+                }
+                
+                next(newFn, prev);
+            }
+        }
+        else {
+            next(sandbox.apply(sandbox.Function.prototype.bind, t, a), prev);
+        }
+    },
+    construct: function(f, a, x, next, ret, cont, brk, thrw, prev) {
+    }
+});
+
 // Array functions.
 // Adding reversible versions of mutating methods.
 // Use sandbox.apply(fn, this, args...) instead of fn.apply(this, args...) so that
@@ -287,17 +345,17 @@ functionInternals.set(pushFn, {
 
 functionInternals.set(popFn, {
     call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
-        if (t.length > 0) {
-            var popped = sandbox.apply(popFn, t, a);
-            var newPrev = function() {
+        var oldLength = t.length;
+        var popped = sandbox.apply(popFn, t, a);
+        var newPrev = prev;
+        // Check length to determine if an object was popped.
+        if (t.length !== oldLength) {
+            newPrev = function() {
                 sandbox.apply(pushFn, t, [popped])
                 prev();
             }
-            next(popped, newPrev);
         }
-        else {
-            next(undefined, prev);
-        }
+        next(popped, newPrev);
     },
     construct: function(f, a, x, next, ret, cont, brk, thrw, prev) {
     }
@@ -305,17 +363,17 @@ functionInternals.set(popFn, {
 
 functionInternals.set(shiftFn, {
     call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
-        if (t.length > 0) {
-            var shifted = sandbox.apply(shiftFn, t, a);
-            var newPrev = function() {
+        var oldLength = t.length;
+        var shifted = sandbox.apply(shiftFn, t, a);
+        var newPrev = prev;
+        // Check length to determine if an object was shifted.
+        if (t.length !== oldLength) {
+            newPrev = function() {
                 sandbox.apply(unshiftFn, t, [shifted])
                 prev();
             }
-            next(shifted, newPrev);
         }
-        else {
-            next(undefined, prev);
-        }
+        next(shifted, newPrev);
     },
     construct: function(f, a, x, next, ret, cont, brk, thrw, prev) {
     }
@@ -403,7 +461,7 @@ functionInternals.set(sandbox.Math.random, {
 // Needs reversible support for Object.defineProperty and Object.defineProperties.
 // Note: support for reversible seal and freeze requires lots of work.
 
-// Conversion functions to move native objects into the sandbox.
+// Conversion functions to move native errors into the sandbox.
 var nativeToSandboxErrors = [
     Error, sandbox.Error,
     EvalError, sandbox.EvalError,
@@ -412,10 +470,6 @@ var nativeToSandboxErrors = [
     SyntaxError, sandbox.SyntaxError,
     TypeError, sandbox.TypeError,
     URIError, sandbox.URIError
-];
-var nativeToSandboxClasses = [
-    Number, sandbox.Number,
-    String, sandbox.String
 ];
 
 function sandboxError(e, fileName, lineNumber) {
@@ -429,18 +483,6 @@ function sandboxError(e, fileName, lineNumber) {
         return newError;
     }
     return e;
-}
-function sandboxBaseValue(v) {
-    // RegEx.
-    if (v.constructor === RegExp) {
-        return new sandbox.RegExp(v.source, (v.ignoreCase ? "i" : "") + (v.global ? "g" : "") + (v.multiline ? "m" : ""));
-    }
-    // Number or String.
-    var i = nativeToSandboxClasses.indexOf(v.constructor);
-    if (i>=0 && i%2===0) {
-        return nativeToSandboxClasses[i+1](v);
-    }
-    return v;
 }
 
 function sandboxArray(v) {
@@ -527,7 +569,7 @@ function translate(value, depth) {
         // Translate objects to a depth of 1.
         var obj = {};
         for (var k in value) {
-            if (value.hasOwnProperty(k)) {
+            if (hasDirectProperty(k)) {
                 obj[k] = translate(value[k], depth+1);
             }
         }
@@ -550,14 +592,17 @@ function isObject(v) {
 
 // If r instanceof Reference, v === getValue(r); else v === r.  If passed, rn
 // is the node whose execute result was r.
-// Same as toObject, but throws a type error if v is null or undefined
-function toObjectCheck(v, r, rn, next, thrw) {
+function checkObjectCoercible(v, r, rn) {
     if (v === undefined || v === null) {
-        // fixme: use thrw instead of throw
         var message = "'" + JSON.stringify(v) + "' is not an object (evaluating " +r+")";
         throw (rn ? newTypeError(message, rn.filename, rn.lineno)
             : newTypeError(message));
     }
+}
+
+// Same as toObject, but throws a type error if v is null or undefined
+function toObjectCheck(v, r, rn) {
+    checkObjectCoercible(v, r, rn);
     return toObject(v);
 }
 
@@ -579,7 +624,7 @@ function toObject(v) {
 function FunctionInternals(node, scope) {
     this.node = node;
     this.scope = scope;
-    this.length = node.params.length;
+    this.length = node? node.params.length : 0;
 }
 
 
@@ -634,7 +679,7 @@ function constructFunction(fn, args, x, next, ret, cont, brk, thrw, prev) {
         // Calling out to native function.
         // Catch native exception and convert into interpreter exception.
         try {
-            var newFn = applyNew(fn, args);
+            var newFn = sandbox.applyNew(fn, args);
             next(newFn, prev);
         }
         catch (e) {
@@ -674,12 +719,56 @@ function callFunction(f, t, a, x, next, ret, cont, brk, thrw, prev, options) {
 
 var continuationMarker = {};
 
-function Activation(f, a) {
-    if (f) {
-        for (var i = 0, j = f.params.length; i < j; i++) {
-            Definitions.defineProperty(this, f.params[i], a[i], true);
+// Get the sandbox poison function for callee and caller to ensure the same function is always used.
+var calleeCallerPoisonFn = sandbox.eval("'use strict'; Object.getOwnPropertyDescriptor(function() {}, 'caller').get");
+
+function Activation(f, a, callee) {
+    if (f) {        
+        // Ugly method of creating an arguments object with the correct properties.
+        // Allow parameter named 'arguments' by changing the name of the parameter.
+        var safeParams = f.params.map(function(name) {
+            // Quick and dirty unique argument name by joining all param names.
+            return (name === "arguments")? ("_"+f.params.join("_")) : name;
+          });
+        var args = safeParams.join(", ");
+        var accessors = safeParams.map(function(name) {
+            return "{get:function(){return "+name+";}, set:function(v){return "+name+" = v;}, configurable:false}";
+          }).join(", ");
+        
+        var fnStr = "(function("+args+"){\n"+
+                "return {args:arguments, accessors:["+accessors+"]};\n\
+            })";
+        
+        var r = sandbox.eval(fnStr).apply(null, a);
+        var paramNames = {};
+        
+        // Set all parameters on Activation.
+        for (var i=f.params.length-1; i>=0; i--) {
+            if (!Object.prototype.hasOwnProperty.call(this, f.params[i])) {
+                if (!f.body.strict) {
+                    Object.defineProperty(this, f.params[i], r.accessors[i]);
+                    paramNames[f.params[i]] = true;
+                }
+                else if (a.length > i) {
+                    Object.defineProperty(this, f.params[i], {value:a[i], writable:true, enumerable:false, configurable:true});
+                }
+            }
         }
-        Definitions.defineProperty(this, "arguments", a, true);
+        
+        // Only add 'arguments' if it is not already a parameter.
+        if (!paramNames["arguments"]) {
+            // Set 'arguments' on Activation.
+            Object.defineProperty(this, "arguments", {value:r.args, writable:true, enumerable:false, configurable:false});
+            
+            // Define 'callee' and 'caller' on arguments.
+            if (!f.body.strict) {
+                Object.defineProperty(r.args, "callee", {value:callee, writable:true, enumerable:false, configurable:true});
+            }
+            else {
+                Object.defineProperty(r.args, "callee", {get:calleeCallerPoisonFn, set:calleeCallerPoisonFn, enumerable:false, configurable:false});
+                Object.defineProperty(r.args, "caller", {get:calleeCallerPoisonFn, set:calleeCallerPoisonFn, enumerable:false, configurable:false});
+            }
+        }
     }
 }
 
@@ -691,17 +780,18 @@ Activation.prototype = Object.create(null);
 
 var FIp = FunctionInternals.prototype = {
     call: function(f, t, a, x, next, ret, cont, brk, thrw, prev, options) {
-        var x2 = interpreter.createFunctionExecutionContext(this.node.body.strict);
+        var n = this.node;
+        var x2 = interpreter.createFunctionExecutionContext(n.body.strict);
         
         // Get the 'this' object for the function call.
         if (x2.strict && options && options.callViaFunctionApply) {
             x2.thisObject = t;
         }
         else if (x2.strict) {
-            x2.thisObject = (t !== global? t : undefined);
+            x2.thisObject = t !== global? t : undefined;
         }
         else {
-            x2.thisObject = (t || global);
+            x2.thisObject = toObject(t) || global;
         }
         
         x2.functionInstance = this;
@@ -711,12 +801,8 @@ var FIp = FunctionInternals.prototype = {
         x2.stack = x.stack.slice();
         x2.stack.push({node:x.currentNode, executionContext:x});
         
-        // Convert the array a into a genuine arguments object from the sandbox.
-        a = sandbox.makeArguments(a);
-        Definitions.defineProperty(a, "callee", f, false, false, true);
+        x2.scope = {object: new Activation(n, a, f), parent: this.scope};
         
-        var n = this.node;
-        x2.scope = {object: new Activation(n, a), parent: this.scope};
         if (next) {
             // next continuation enforces undefined value
             // ret continuation is next
@@ -767,7 +853,7 @@ var FIp = FunctionInternals.prototype = {
     toString: function() {
         var parenthesized = this.node.parenthesized;
         this.node.parenthesized = false;
-        var result = Decompiler.pp(this.node);
+        var result = Tailspin.Decompiler.pp(this.node);
         this.node.parenthesized = parenthesized;
         return result;
     }
@@ -831,12 +917,12 @@ exports.resetEnvironment = resetEnvironment;
 
 exports.sandbox = sandbox;
 exports.sandboxError = sandboxError;
-exports.sandboxBaseValue = sandboxBaseValue;
 exports.sandboxArray = sandboxArray;
 exports.newTypeError = newTypeError;
 exports.newReferenceError = newReferenceError;
 exports.isPrimitive = isPrimitive;
 exports.isObject = isObject;
+exports.checkObjectCoercible = checkObjectCoercible;
 exports.toObjectCheck = toObjectCheck;
 exports.toObject = toObject;
 

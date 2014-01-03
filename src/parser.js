@@ -49,22 +49,23 @@
  * Parser.
  */
 
-var Parser = (function () {
-var options = {
-    // Allow HTML comments?
-    allowHTMLComments: false,
-    // Allow non-standard Mozilla extensions?
-    mozillaMode: false,
-    // Allow experimental paren-free mode?
-    parenFreeMode: false
-};
-var Tokenizer = Lexer.Tokenizer;
-
-const Dict = Definitions.Dict;
-const Stack = Definitions.Stack;
+// Outer non-strict code.
+// CUT>
+(function () {
 
 // Set constants in the local scope.
-eval(Definitions.consts);
+eval(Tailspin.Definitions.consts);
+// <CUT
+
+Tailspin.Parser = (function () {
+"use strict";
+
+var Tokenizer = Tailspin.Lexer.Tokenizer;
+
+var Definitions = Tailspin.Definitions;
+var Dict = Tailspin.Utility.Dict;
+var Stack = Tailspin.Utility.Stack;
+
 
 /*
  * pushDestructuringVarDecls :: (node, hoisting node) -> void
@@ -87,14 +88,11 @@ function Parser(tokenizer) {
     this.t = tokenizer;
     this.x = null;
     this.unexpectedEOF = false;
-    options.mozillaMode && (this.mozillaMode = true);
-    options.parenFreeMode && (this.parenFreeMode = true);
 }
 
-function StaticContext(parentScript, parentBlock, inModule, inFunction, strictMode) {
+function StaticContext(parentScript, parentBlock, inFunction, strictMode) {
     this.parentScript = parentScript;
     this.parentBlock = parentBlock || parentScript;
-    this.inModule = inModule || false;
     this.inFunction = inFunction || null;
     this.inForLoopInit = false;
     this.topLevel = true;
@@ -150,25 +148,12 @@ StaticContext.prototype = {
     nest: function() {
         return this.topLevel ? this.update({ topLevel: false }) : this;
     },
-    canImport: function() {
-        return this.topLevel && !this.inFunction;
-    },
-    canExport: function() {
-        return this.inModule && this.topLevel && !this.inFunction;
-    },
     banWith: function() {
-        return this.strictMode || this.inModule;
-    },
-    modulesAllowed: function() {
-        return this.topLevel && !this.inFunction;
+        return this.strictMode;
     }
 };
 
 var Pp = Parser.prototype;
-
-Pp.mozillaMode = false;
-
-Pp.parenFreeMode = false;
 
 Pp.withContext = function(x, f) {
     var x0 = this.x;
@@ -201,8 +186,8 @@ Pp.mustMatch = function mustMatch(tt, keywordIsName) {
     return this.t.mustMatch(tt, keywordIsName);
 };
 
-Pp.peek = function peek(scanOperand) {
-    return this.t.peek(scanOperand);
+Pp.peek = function peek(scanOperand, keywordIsName) {
+    return this.t.peek(scanOperand, keywordIsName);
 };
 
 Pp.peekOnSameLine = function peekOnSameLine(scanOperand) {
@@ -216,11 +201,11 @@ Pp.done = function done() {
 /*
  * Script :: (boolean, boolean, boolean) -> node
  *
- * Parses the toplevel and module/function bodies.
+ * Parses the toplevel and function bodies.
  */
-Pp.Script = function Script(inModule, inFunction, expectEnd, strict) {
+Pp.Script = function Script(inFunction, expectEnd, strict) {
     var node = this.newNode(scriptInit());
-    var x2 = new StaticContext(node, node, inModule, inFunction, strict);
+    var x2 = new StaticContext(node, node, inFunction, strict);
     this.withContext(x2, function() {
         this.Statements(node, true);
     });
@@ -286,7 +271,7 @@ function SyntheticNode(init) {
 var Np = Node.prototype = SyntheticNode.prototype = {};
 Np.constructor = Node;
 
-const TO_SOURCE_SKIP = {
+var TO_SOURCE_SKIP = {
     type: true,
     value: true,
     lineno: true,
@@ -299,7 +284,7 @@ function unevalableConst(code) {
     var token = Definitions.tokens[code];
     var constName = Definitions.opTypeNames.hasOwnProperty(token)
         ? Definitions.opTypeNames[token]
-        : token in Definitions.keywords
+        : Definitions.keywords.hasOwnProperty(token)
         ? token.toUpperCase()
         : token;
     return { toSource: function() { return constName } };
@@ -359,13 +344,13 @@ Np.toString = function () {
             a.push({id: i, value: this[i]});
     }
     a.sort(function (a,b) { return (a.id < b.id) ? -1 : 1; });
-    const INDENTATION = "    ";
+    var INDENTATION = "    ";
     var n = ++Node.indentLevel;
-    var s = "{\n" + INDENTATION.repeat(n) + "type: " + tokenString(this.type);
+    var s = "{\n" + repeatString(INDENTATION, n) + "type: " + tokenString(this.type);
     for (i = 0; i < a.length; i++)
-        s += ",\n" + INDENTATION.repeat(n) + a[i].id + ": " + a[i].value;
+        s += ",\n" + repeatString(INDENTATION, n) + a[i].id + ": " + a[i].value;
     n = --Node.indentLevel;
-    s += "\n" + INDENTATION.repeat(n) + "}";
+    s += "\n" + repeatString(INDENTATION, n) + "}";
     return s;
 }
 
@@ -382,7 +367,7 @@ Np.synth = function(init) {
  * Helper init objects for common nodes.
  */
 
-const LOOP_INIT = { isLoop: true };
+var LOOP_INIT = { isLoop: true };
 
 function blockInit() {
     return { type: BLOCK, varDecls: [] };
@@ -398,29 +383,19 @@ function scriptInit() {
              modLoads: new Dict(),
              impDecls: [],
              expDecls: [],
-             exports: new Dict(),
              hasEmptyReturn: false,
-             hasReturnWithValue: false,
-             hasYield: false };
+             hasReturnWithValue: false };
 }
 
-/*definitions.__defineGetter__(Np, "length",
-                         function() {
-                             throw new Error("Node.prototype.length is gone; " +
-                                             "use n.children.length instead");
-                         });*/
-
-Definitions.defineProperty(String.prototype, "repeat",
-                           function(n) {
-                               var s = "", t = this + s;
-                               while (--n >= 0)
-                                   s += t;
-                               return s;
-                           }, false, false, true);
+function repeatString(str, n) {
+   var s = "", t = str + s;
+   while (--n >= 0) {
+       s += t;
+   }
+   return s;
+}
 
 Pp.MaybeLeftParen = function MaybeLeftParen() {
-    if (this.parenFreeMode)
-        return this.match(LEFT_PAREN) ? LEFT_PAREN : END;
     return this.mustMatch(LEFT_PAREN).type;
 };
 
@@ -482,103 +457,7 @@ Pp.Block = function Block() {
     return n;
 }
 
-const DECLARED_FORM = 0, EXPRESSED_FORM = 1, STATEMENT_FORM = 2;
-
-/*
- * Export :: (binding node, boolean) -> Export
- *
- * Static semantic representation of a module export.
- */
-function Export(node, isDefinition) {
-    this.node = node;                 // the AST node declaring this individual export
-    this.isDefinition = isDefinition; // is the node an 'export'-annotated definition?
-    this.resolved = null;             // resolved pointer to the target of this export
-}
-
-/*
- * registerExport :: (Dict, EXPORT node) -> void
- */
-function registerExport(exports, decl) {
-    function register(name, exp) {
-        if (exports.has(name))
-            throw new SyntaxError("multiple exports of " + name);
-        exports.set(name, exp);
-    }
-
-    switch (decl.type) {
-      case MODULE:
-      case FUNCTION:
-        register(decl.name, new Export(decl, true));
-        break;
-
-      case VAR:
-        for (var i = 0; i < decl.children.length; i++)
-            register(decl.children[i].name, new Export(decl.children[i], true));
-        break;
-
-      case LET:
-      case CONST:
-        throw new Error("NYI: " + Definitions.tokens[decl.type]);
-
-      case EXPORT:
-        for (var i = 0; i < decl.pathList.length; i++) {
-            var path = decl.pathList[i];
-            switch (path.type) {
-              case OBJECT_INIT:
-                for (var j = 0; j < path.children.length; j++) {
-                    // init :: IDENTIFIER | PROPERTY_INIT
-                    var init = path.children[j];
-                    if (init.type === IDENTIFIER)
-                        register(init.value, new Export(init, false));
-                    else
-                        register(init.children[0].value, new Export(init.children[1], false));
-                }
-                break;
-
-              case DOT:
-                register(path.children[1].value, new Export(path, false));
-                break;
-
-              case IDENTIFIER:
-                register(path.value, new Export(path, false));
-                break;
-
-              default:
-                throw new Error("unexpected export path: " + Definitions.tokens[path.type]);
-            }
-        }
-        break;
-
-      default:
-        throw new Error("unexpected export decl: " + Definitions.tokens[exp.type]);
-    }
-}
-
-/*
- * Module :: (node) -> Module
- *
- * Static semantic representation of a module.
- */
-function Module(node) {
-    var exports = node.body.exports;
-    var modDefns = node.body.modDefns;
-
-    var exportedModules = new Dict();
-
-    exports.forEach(function(name, exp) {
-        var node = exp.node;
-        if (node.type === MODULE) {
-            exportedModules.set(name, node);
-        } else if (!exp.isDefinition && node.type === IDENTIFIER && modDefns.has(node.value)) {
-            var mod = modDefns.get(node.value);
-            exportedModules.set(name, mod);
-        }
-    });
-
-    this.node = node;
-    this.exports = exports;
-    this.exportedModules = exportedModules;
-}
+var DECLARED_FORM = 0, EXPRESSED_FORM = 1, STATEMENT_FORM = 2;
 
 /*
  * Statement :: () -> node
@@ -593,37 +472,6 @@ Pp.Statement = function Statement() {
     // Cases for statements ending in a right curly return early, avoiding the
     // common semicolon insertion magic after this switch.
     switch (tt) {
-      case IMPORT:
-        throw "Import not supported.";
-        /*if (!this.x.canImport())
-            this.fail("illegal context for import statement");
-        n = this.newNode();
-        n.pathList = this.ImportPathList();
-        this.x.parentScript.impDecls.push(n);*/
-        break;
-
-      case EXPORT:
-        if (!this.x.canExport())
-            this.fail("export statement not in module top level");
-        switch (this.peek()) {
-          case MODULE:
-          case FUNCTION:
-          case LET:
-          case VAR:
-          case CONST:
-            n = this.Statement();
-            n.blockComments = comments;
-            n.exported = true;
-            this.x.parentScript.expDecls.push(n);
-            registerExport(this.x.parentScript.exports, n);
-            return n;
-        }
-        n = this.newNode();
-        n.pathList = this.ExportPathList();
-        this.x.parentScript.expDecls.push(n);
-        registerExport(this.x.parentScript.exports, n);
-        break;
-
       case FUNCTION:
         // DECLARED_FORM extends funDecls of x, STATEMENT_FORM doesn't.
         return this.FunctionDefinition(true, this.x.topLevel ? DECLARED_FORM : STATEMENT_FORM, comments);
@@ -684,14 +532,7 @@ Pp.Statement = function Statement() {
       case FOR:
         n = this.newNode(LOOP_INIT);
         n.blockComments = comments;
-        if (this.match(IDENTIFIER)) {
-            if (this.t.token.value === "each")
-                n.isEach = true;
-            else
-                this.t.unget();
-        }
-        if (!this.parenFreeMode)
-            this.mustMatch(LEFT_PAREN);
+        this.mustMatch(LEFT_PAREN);
         x2 = this.x.pushTarget(n).nest();
         x3 = this.x.update({ inForLoopInit: true });
         n2 = null;
@@ -700,18 +541,8 @@ Pp.Statement = function Statement() {
                 if (tt === VAR || tt === CONST) {
                     this.t.get();
                     n2 = this.Variables();
-                } else if (tt === LET) {
-                    this.t.get();
-                    if (this.peek() === LEFT_PAREN) {
-                        n2 = this.LetBlock(false);
-                    } else {
-                        // Let in for head, we need to add an implicit block
-                        // around the rest of the for.
-                        this.x.parentBlock = n;
-                        n.varDecls = [];
-                        n2 = this.Variables();
-                    }
-                } else {
+                }
+                else {
                     n2 = this.Expression();
                 }
             });
@@ -720,7 +551,7 @@ Pp.Statement = function Statement() {
             n.type = FOR_IN;
             this.withContext(x3, function() {
                 n.object = this.Expression();
-                if (n2.type === VAR || n2.type === LET) {
+                if (n2.type === VAR) {
                     c = n2.children;
 
                     // Destructuring turns one decl into multiples, so either
@@ -748,23 +579,16 @@ Pp.Statement = function Statement() {
             x3.inForLoopInit = false;
             n.setup = n2;
             this.mustMatch(SEMICOLON);
-            if (n.isEach)
-                this.fail("Invalid for each..in loop");
             this.withContext(x3, function() {
                 n.condition = (this.peek(true) === SEMICOLON)
                     ? null
                     : this.Expression();
                 this.mustMatch(SEMICOLON);
                 tt2 = this.peek(true);
-                n.update = (this.parenFreeMode
-                            ? tt2 === LEFT_CURLY || Definitions.isStatementStartCode[tt2]
-                            : tt2 === RIGHT_PAREN)
-                    ? null
-                    : this.Expression();
+                n.update = tt2 === RIGHT_PAREN? null : this.Expression();
             });
         }
-        if (!this.parenFreeMode)
-            this.mustMatch(RIGHT_PAREN);
+        this.mustMatch(RIGHT_PAREN);
         this.withContext(x2, function() {
             n.body = this.Statement();
         });
@@ -831,7 +655,7 @@ Pp.Statement = function Statement() {
         n.tryBlock = this.Block();
         while (this.match(CATCH)) {
             n2 = this.newNode();
-            p = this.MaybeLeftParen();
+            this.mustMatch(LEFT_PAREN);
             switch (this.t.get()) {
               case LEFT_BRACKET:
               case LEFT_CURLY:
@@ -847,14 +671,7 @@ Pp.Statement = function Statement() {
                 this.fail("missing identifier in catch");
                 break;
             }
-            if (this.match(IF)) {
-                if (!this.mozillaMode)
-                    this.fail("Illegal catch guard");
-                if (n.catchClauses.length && !n.catchClauses.top().guard)
-                    this.fail("Guarded catch after unguarded");
-                n2.guard = this.Expression();
-            }
-            this.MaybeRightParen(p);
+            this.mustMatch(RIGHT_PAREN);
             n2.block = this.Block();
             n.catchClauses.push(n2);
         }
@@ -874,12 +691,13 @@ Pp.Statement = function Statement() {
         break;
 
       case RETURN:
-        n = this.ReturnOrYield();
+        n = this.Return();
         break;
 
       case WITH:
-        if (this.x.banWith())
-            this.fail("with statements not allowed in strict code or modules");
+        if (this.x.banWith()) {
+            this.fail("with statements not allowed in strict code");
+        }
         n = this.newNode();
         n.blockComments = comments;
         n.object = this.HeadExpression();
@@ -891,14 +709,6 @@ Pp.Statement = function Statement() {
 
       case VAR:
       case CONST:
-        n = this.Variables();
-        break;
-
-      case LET:
-        if (this.peek() === LEFT_PAREN) {
-            n = this.LetBlock(true);
-            return n;
-        }
         n = this.Variables();
         break;
 
@@ -914,61 +724,21 @@ Pp.Statement = function Statement() {
         return n;
 
       case IDENTIFIER:
-      case USE:
-      case MODULE:
-        switch (this.t.token.value) {
-          case "use":
-            if (!isPragmaToken(this.peekOnSameLine())) {
-                this.t.unget();
-                break;
-            }
-            return this.newNode({ type: USE, params: this.Pragmas() });
-
-          case "module":
-            if (!this.x.modulesAllowed())
-                this.fail("module declaration not at top level");
-            this.x.parentScript.hasModules = true;
-            tt = this.peekOnSameLine();
-            if (tt !== IDENTIFIER && tt !== LEFT_CURLY) {
-                this.t.unget();
-                break;
-            }
-            n = this.newNode({ type: MODULE });
-            n.blockComments = comments;
-            this.mustMatch(IDENTIFIER);
+        tt = this.peek();
+        // Labeled statement.
+        if (tt === COLON) {
             label = this.t.token.value;
-
-            if (this.match(LEFT_CURLY)) {
-                n.name = label;
-                n.body = this.Script(true, null);
-                n.module = new Module(n);
-                this.mustMatch(RIGHT_CURLY);
-                this.x.parentScript.modDefns.set(n.name, n);
-                return n;
-            }
-
-            this.t.unget();
-            this.ModuleVariables(n);
+            if (this.x.allLabels.has(label))
+                this.fail("Duplicate label: " + label);
+            this.t.get();
+            n = this.newNode({ type: LABEL, label: label });
+            n.blockComments = comments;
+            x2 = this.x.pushLabel(label).nest();
+            this.withContext(x2, function() {
+                n.statement = this.Statement();
+            });
+            n.target = (n.statement.type === LABEL) ? n.statement.target : n.statement;
             return n;
-
-          default:
-            tt = this.peek();
-            // Labeled statement.
-            if (tt === COLON) {
-                label = this.t.token.value;
-                if (this.x.allLabels.has(label))
-                    this.fail("Duplicate label: " + label);
-                this.t.get();
-                n = this.newNode({ type: LABEL, label: label });
-                n.blockComments = comments;
-                x2 = this.x.pushLabel(label).nest();
-                this.withContext(x2, function() {
-                    n.statement = this.Statement();
-                });
-                n.target = (n.statement.type === LABEL) ? n.statement.target : n.statement;
-                return n;
-            }
-            // FALL THROUGH
         }
         // FALL THROUGH
 
@@ -1043,76 +813,29 @@ Pp.MagicalSemicolon = function MagicalSemicolon() {
 }
 
 /*
- * ReturnOrYield :: () -> (RETURN | YIELD) node
+ * Return :: () -> (RETURN) node
  */
-Pp.ReturnOrYield = function ReturnOrYield() {
-    var n, b, tt = this.t.token.type, tt2;
-
+Pp.Return = function Return() {
     var parentScript = this.x.parentScript;
 
-    if (tt === RETURN) {
-        if (!this.x.inFunction)
-            this.fail("Return not in function");
-    } else /* if (tt === YIELD) */ {
-        if (!this.x.inFunction)
-            this.fail("Yield not in function");
-        parentScript.hasYield = true;
+    if (!this.x.inFunction) {
+        this.fail("Return not in function");
     }
-    n = this.newNode({ value: undefined });
+    
+    var n = this.newNode({ value: undefined });
 
-    tt2 = (tt === RETURN) ? this.peekOnSameLine(true) : this.peek(true);
-    if (tt2 !== END && tt2 !== NEWLINE &&
-        tt2 !== SEMICOLON && tt2 !== RIGHT_CURLY
-        && (tt !== YIELD ||
-            (tt2 !== tt && tt2 !== RIGHT_BRACKET && tt2 !== RIGHT_PAREN &&
-             tt2 !== COLON && tt2 !== COMMA))) {
-        if (tt === RETURN) {
-            n.value = this.Expression();
-            parentScript.hasReturnWithValue = true;
-        } else {
-            n.value = this.AssignExpression();
-        }
-    } else if (tt === RETURN) {
+    var tt2 = this.peekOnSameLine(true);
+    if (tt2 !== END && tt2 !== NEWLINE && tt2 !== SEMICOLON && tt2 !== RIGHT_CURLY) {
+        n.value = this.Expression();
+        parentScript.hasReturnWithValue = true;
+    }
+    else {
         parentScript.hasEmptyReturn = true;
     }
 
     return n;
 }
 
-/*
- * ModuleExpression :: () -> (STRING | IDENTIFIER | DOT) node
- */
-Pp.ModuleExpression = function ModuleExpression() {
-    return this.match(STRING) ? this.newNode() : this.QualifiedPath();
-}
-
-/*
- * ImportPathList :: () -> Array[DOT node]
- */
-Pp.ImportPathList = function ImportPathList() {
-    var a = [];
-    do {
-        a.push(this.ImportPath());
-    } while (this.match(COMMA));
-    return a;
-}
-
-/*
- * ImportPath :: () -> DOT node
- */
-Pp.ImportPath = function ImportPath() {
-    var n = this.QualifiedPath();
-    if (!this.match(DOT)) {
-        if (n.type === IDENTIFIER)
-            this.fail("cannot import local variable");
-        return n;
-    }
-
-    var n2 = this.newNode();
-    n2.push(n);
-    n2.push(this.ImportSpecifierSet());
-    return n2;
-}
 
 /*
  * ExplicitSpecifierSet :: (() -> node) -> OBJECT_INIT node
@@ -1140,15 +863,6 @@ Pp.ExplicitSpecifierSet = function ExplicitSpecifierSet(SpecifierRHS) {
     return n;
 }
 
-/*
- * ImportSpecifierSet :: () -> (IDENTIFIER | OBJECT_INIT) node
- */
-Pp.ImportSpecifierSet = function ImportSpecifierSet() {
-    var self = this;
-    return this.match(MUL)
-        ? this.newNode({ type: IDENTIFIER, name: "*" })
-    : ExplicitSpecifierSet(function() { return self.Identifier() });
-}
 
 /*
  * Identifier :: () -> IDENTIFIER node
@@ -1189,26 +903,6 @@ Pp.QualifiedPath = function QualifiedPath() {
     return n;
 }
 
-/*
- * ExportPath :: () -> (IDENTIFIER | DOT | OBJECT_INIT) node
- */
-Pp.ExportPath = function ExportPath() {
-    var self = this;
-    if (this.peek() === LEFT_CURLY)
-        return this.ExplicitSpecifierSet(function() { return self.QualifiedPath() });
-    return this.QualifiedPath();
-}
-
-/*
- * ExportPathList :: () -> Array[(IDENTIFIER | DOT | OBJECT_INIT) node]
- */
-Pp.ExportPathList = function ExportPathList() {
-    var a = [];
-    do {
-        a.push(this.ExportPath());
-    } while (this.match(COMMA));
-    return a;
-}
 
 /*
  * FunctionDefinition :: (boolean,
@@ -1224,8 +918,6 @@ Pp.FunctionDefinition = function FunctionDefinition(requireName, functionForm, c
     f.blockComments = comments;
     if (f.type !== FUNCTION)
         f.type = (f.value === "get") ? GETTER : SETTER;
-    if (this.match(MUL))
-        f.isExplicitGenerator = true;
     if (this.match(IDENTIFIER, false, keywordIsName)) {
         f.name = this.t.token.value;
         this.checkValidIdentifierIfStrict("function", f.name);
@@ -1233,8 +925,7 @@ Pp.FunctionDefinition = function FunctionDefinition(requireName, functionForm, c
     else if (requireName)
         this.fail("missing function identifier");
 
-    var inModule = this.x.inModule;
-    var x2 = new StaticContext(null, null, inModule, f, this.x.strictMode);
+    var x2 = new StaticContext(null, null, f, this.x.strictMode);
     this.withContext(x2, function() {
         this.mustMatch(LEFT_PAREN);
         if (!this.match(RIGHT_PAREN)) {
@@ -1274,7 +965,7 @@ Pp.FunctionDefinition = function FunctionDefinition(requireName, functionForm, c
         if (tt !== LEFT_CURLY) {
             f.body = this.AssignExpression();
         } else {
-            f.body = this.Script(inModule, f, false, x2.strictMode);
+            f.body = this.Script(f, false, x2.strictMode);
         }
     });
 
@@ -1286,36 +977,9 @@ Pp.FunctionDefinition = function FunctionDefinition(requireName, functionForm, c
     if (functionForm === DECLARED_FORM)
         this.x.parentScript.funDecls.push(f);
 
-    if (this.x.inModule && !f.isExplicitGenerator && f.body.hasYield)
-        this.fail("yield in non-generator function");
-
-    if (f.isExplicitGenerator || f.body.hasYield)
-        f.body = this.newNode({ type: GENERATOR, body: f.body });
-
     return f;
 }
 
-/*
- * ModuleVariables :: (MODULE node) -> void
- *
- * Parses a comma-separated list of module declarations (and maybe
- * initializations).
- */
-Pp.ModuleVariables = function ModuleVariables(n) {
-    var n1, n2;
-    do {
-        n1 = this.Identifier();
-        if (this.match(ASSIGN)) {
-            n2 = this.ModuleExpression();
-            n1.initializer = n2;
-            if (n2.type === STRING)
-                this.x.parentScript.modLoads.set(n1.value, n2.value);
-            else
-                this.x.parentScript.modAssns.set(n1.value, n1);
-        }
-        n.push(n1);
-    } while (this.match(COMMA));
-}
 
 /*
  * Variables :: () -> node
@@ -1323,7 +987,7 @@ Pp.ModuleVariables = function ModuleVariables(n) {
  * Parses a comma-separated list of var declarations (and maybe
  * initializations).
  */
-Pp.Variables = function Variables(letBlock) {
+Pp.Variables = function Variables() {
     var n, n2, ss, i, s, tt;
 
     tt = this.t.token.type;
@@ -1331,13 +995,6 @@ Pp.Variables = function Variables(letBlock) {
       case VAR:
       case CONST:
         s = this.x.parentScript;
-        break;
-      case LET:
-        s = this.x.parentBlock;
-        break;
-      case LEFT_PAREN:
-        tt = LET;
-        s = letBlock;
         break;
     }
 
@@ -1398,38 +1055,6 @@ Pp.Variables = function Variables(letBlock) {
     return n;
 }
 
-/*
- * LetBlock :: (boolean) -> node
- *
- * Does not handle let inside of for loop init.
- */
-Pp.LetBlock = function LetBlock(isStatement) {
-    var n, n2;
-
-    // t.token.type must be LET
-    n = this.newNode({ type: LET_BLOCK, varDecls: [] });
-    this.mustMatch(LEFT_PAREN);
-    n.variables = this.Variables(n);
-    this.mustMatch(RIGHT_PAREN);
-
-    if (isStatement && this.peek() !== LEFT_CURLY) {
-        /*
-         * If this is really an expression in let statement guise, then we
-         * need to wrap the LET_BLOCK node in a SEMICOLON node so that we pop
-         * the return value of the expression.
-         */
-        n2 = this.newNode({ type: SEMICOLON, expression: n });
-        isStatement = false;
-    }
-
-    if (isStatement)
-        n.block = this.Block();
-    else
-        n.expression = this.AssignExpression();
-
-    return n;
-}
-
 Pp.checkDestructuring = function checkDestructuring(n, simpleNamesOnly) {
     if (n.type === ARRAY_COMP)
         this.fail("Invalid array comprehension left-hand side");
@@ -1476,14 +1101,8 @@ Pp.DestructuringExpression = function DestructuringExpression(simpleNamesOnly) {
     return n;
 }
 
-Pp.GeneratorExpression = function GeneratorExpression(e) {
-    return this.newNode({ type: GENERATOR,
-                          expression: e,
-                          tail: this.ComprehensionTail() });
-}
-
 Pp.ComprehensionTail = function ComprehensionTail() {
-    var body, n, n2, n3, p;
+    var body, n, n2, n3;
 
     // t.token.type must be FOR
     body = this.newNode({ type: COMP_TAIL });
@@ -1491,14 +1110,7 @@ Pp.ComprehensionTail = function ComprehensionTail() {
     do {
         // Comprehension tails are always for..in loops.
         n = this.newNode({ type: FOR_IN, isLoop: true });
-        if (this.match(IDENTIFIER)) {
-            // But sometimes they're for each..in.
-            if (this.mozillaMode && this.t.token.value === "each")
-                n.isEach = true;
-            else
-                this.t.unget();
-        }
-        p = this.MaybeLeftParen();
+        this.mustMatch(LEFT_PAREN);
         switch(this.t.get()) {
           case LEFT_BRACKET:
           case LEFT_CURLY:
@@ -1523,7 +1135,7 @@ Pp.ComprehensionTail = function ComprehensionTail() {
         }
         this.mustMatch(IN);
         n.object = this.Expression();
-        this.MaybeRightParen(p);
+        this.mustMatch(RIGHT_PAREN);
         body.push(n);
     } while (this.match(FOR));
 
@@ -1535,14 +1147,9 @@ Pp.ComprehensionTail = function ComprehensionTail() {
 }
 
 Pp.HeadExpression = function HeadExpression() {
-    var p = this.MaybeLeftParen();
+    this.mustMatch(LEFT_PAREN);
     var n = this.ParenExpression();
-    this.MaybeRightParen(p);
-    if (p === END && !n.parenthesized) {
-        var tt = this.peek();
-        if (tt !== LEFT_CURLY && !Definitions.isStatementStartCode[tt])
-            this.fail("Unparenthesized head followed by unbraced body");
-    }
+    this.mustMatch(RIGHT_PAREN);
     return n;
 }
 
@@ -1556,13 +1163,6 @@ Pp.ParenExpression = function ParenExpression() {
     var n = this.withContext(x2, function() {
         return this.Expression();
     });
-    if (this.match(FOR)) {
-        if (n.type === YIELD && !n.parenthesized)
-            this.fail("Yield expression must be parenthesized");
-        if (n.type === COMMA && !n.parenthesized)
-            this.fail("Generator expression must be parenthesized");
-        n = this.GeneratorExpression(n);
-    }
 
     return n;
 }
@@ -1582,8 +1182,6 @@ Pp.Expression = function Expression() {
         n = n2;
         do {
             n2 = n.children[n.children.length-1];
-            if (n2.type === YIELD && !n2.parenthesized)
-                this.fail("Yield expression must be parenthesized");
             n.push(this.AssignExpression());
         } while (this.match(COMMA));
     }
@@ -1593,11 +1191,6 @@ Pp.Expression = function Expression() {
 
 Pp.AssignExpression = function AssignExpression() {
     var n, lhs;
-
-    // Have to treat yield like an operand because it could be the leftmost
-    // operand of the expression.
-    if (this.match(YIELD, true))
-        return this.ReturnOrYield();
 
     lhs = this.ConditionalExpression();
 
@@ -1767,7 +1360,7 @@ Pp.ShiftExpression = function ShiftExpression() {
      * so unset the flag that prohibits recognizing it.
      */
     var x2 = this.x.update({ inForLoopInit: false });
-        this.withContext(x2, function() {
+    this.withContext(x2, function() {
         n = this.AddExpression();
         while (this.match(LSH) || this.match(RSH) || this.match(URSH)) {
             n2 = this.newNode();
@@ -1914,13 +1507,6 @@ Pp.ArgumentList = function ArgumentList() {
         return n;
     do {
         n2 = this.AssignExpression();
-        if (n2.type === YIELD && !n2.parenthesized && this.peek() === COMMA)
-            this.fail("Yield expression must be parenthesized");
-        if (this.match(FOR)) {
-            n2 = this.GeneratorExpression(n2);
-            if (n.children.length > 1 || this.peek(true) === COMMA)
-                this.fail("Generator expression must be parenthesized");
-        }
         n.push(n2);
     } while (this.match(COMMA));
     this.mustMatch(RIGHT_PAREN);
@@ -1971,7 +1557,7 @@ Pp.PrimaryExpression = function PrimaryExpression() {
                 tt = this.t.get();
                 var tokenValue = this.t.token.value;
                 if ((tokenValue === "get" || tokenValue === "set") &&
-                    (this.peek() === IDENTIFIER || Definitions.isKeyword[this.peek()])) {
+                    this.peek(false, true) === IDENTIFIER) {
                     var fn = this.FunctionDefinition(true, EXPRESSED_FORM, null, true);
                     
                     // Check idTypes for duplicate definitions of key.
@@ -1993,7 +1579,7 @@ Pp.PrimaryExpression = function PrimaryExpression() {
                       case RIGHT_CURLY:
                         break object_init;
                       default:
-                        if (this.t.token.value in Definitions.keywords) {
+                        if (Definitions.keywords.hasOwnProperty(this.t.token.value)) {
                             id = this.newNode({ type: IDENTIFIER });
                             break;
                         }
@@ -2036,11 +1622,7 @@ Pp.PrimaryExpression = function PrimaryExpression() {
         this.mustMatch(RIGHT_PAREN);
         n.parenthesized = true;
         break;
-
-      case LET:
-        n = this.LetBlock(false);
-        break;
-
+      
       case NULL: case THIS: case TRUE: case FALSE:
       case IDENTIFIER: case NUMBER: case STRING: case REGEXP:
         n = this.newNode();
@@ -2055,12 +1637,12 @@ Pp.PrimaryExpression = function PrimaryExpression() {
 }
 
 /*
- * parse :: (source, filename, line number) -> node
+ * parse :: (source, filename, line number, boolean, sandbox) -> node
  */
-function parse(s, f, l, strict) {
-    var t = new Tokenizer(s, f, l, options.allowHTMLComments, strict);
-    var p = new Parser(t);
-    return p.Script(false, null, true, strict);
+function parse(source, filename, lineno, strict, sandbox) {
+    var tokenizer = new Tokenizer(source, filename, lineno, sandbox);
+    var parser = new Parser(tokenizer);
+    return parser.Script(null, true, strict);
 }
 
 /*
@@ -2069,79 +1651,15 @@ function parse(s, f, l, strict) {
  *                   filename, line number)
  *               -> node
  */
-function parseFunction(s, requireName, form, f, l) {
-    var t = new Tokenizer(s, f, l);
+function parseFunction(source, requireName, form, filename, lineno, sandbox) {
+    var t = new Tokenizer(source, filename, lineno, sandbox);
     var p = new Parser(t);
-    p.x = new StaticContext(null, null, false, null, false);
+    p.x = new StaticContext(null, null, null, false);
     return p.FunctionDefinition(requireName, form);
-}
-
-/*
- * parseStdin :: (source, {line number}, string, (string) -> boolean) -> program node
- */
-function parseStdin(s, ln, prefix, isCommand) {
-    // the special .begin command is only recognized at the beginning
-    if (s.match(/^[\s]*\.begin[\s]*$/)) {
-        ++ln.value;
-        return parseMultiline(ln, prefix);
-    }
-
-    // commands at the beginning are treated as the entire input
-    if (isCommand(s.trim()))
-        s = "";
-
-    for (;;) {
-        try {
-            var t = new Tokenizer(s, "stdin", ln.value, false);
-            var p = new Parser(t);
-            var n = p.Script(false, null);
-            ln.value = t.lineno;
-            return n;
-        } catch (e) {
-            if (!p.unexpectedEOF)
-                throw e;
-
-            // commands in the middle are not treated as part of the input
-            var more;
-            do {
-                if (prefix)
-                    putstr(prefix);
-                more = readline();
-                if (!more)
-                    throw e;
-            } while (isCommand(more.trim()));
-
-            s += "\n" + more;
-        }
-    }
-}
-
-/*
- * parseMultiline :: ({line number}, string | null) -> program node
- */
-function parseMultiline(ln, prefix) {
-    var s = "";
-    for (;;) {
-        if (prefix)
-            putstr(prefix);
-        var more = readline();
-        if (more === null)
-            return null;
-        // the only command recognized in multiline mode is .end
-        if (more.match(/^[\s]*\.end[\s]*$/))
-            break;
-        s += "\n" + more;
-    }
-    var t = new Tokenizer(s, "stdin", ln.value, false);
-    var p = new Parser(t);
-    var n = p.Script(false, null);
-    ln.value = t.lineno;
-    return n;
 }
 
 var exports = {};
 exports.parse = parse;
-exports.parseStdin = parseStdin;
 exports.parseFunction = parseFunction;
 exports.Node = Node;
 exports.DECLARED_FORM = DECLARED_FORM;
@@ -2149,8 +1667,9 @@ exports.EXPRESSED_FORM = EXPRESSED_FORM;
 exports.STATEMENT_FORM = STATEMENT_FORM;
 exports.Tokenizer = Tokenizer;
 exports.Parser = Parser;
-exports.Module = Module;
-exports.Export = Export;
 
 return exports;
 })();
+// CUT>
+})();
+// <CUT

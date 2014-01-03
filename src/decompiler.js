@@ -44,11 +44,19 @@
  * Decompiler and pretty-printer.
  */
 
-var Decompiler = (function () {
-const tokens = Definitions.tokens;
+
+// Outer non-strict code.
+// CUT>
+(function () {
 
 // Set constants in the local scope.
-eval(Definitions.consts);
+eval(Tailspin.Definitions.consts);
+// <CUT
+
+Tailspin.Decompiler = (function () {
+"use strict";
+
+var tokens = Tailspin.Definitions.tokens;
 
 function indent(n, s) {
     var ss = "", d = true;
@@ -101,7 +109,7 @@ function nodeStr(n) {
     return '"' + nodeStrEscape(n.value) + '"';
 }
 
-function pp(n, d, inLetHead) {
+function pp(n, d) {
     var topScript = false;
 
     if (!n)
@@ -167,14 +175,6 @@ function pp(n, d, inLetHead) {
         p += "\n}";
         break;
 
-      case LET_BLOCK:
-        p += "let (" + pp(n.variables, d, true) + ") ";
-        if (n.expression)
-            p += pp(n.expression, d);
-        else
-            p += pp(n.block, d);
-        break;
-
       case IF:
         p += "if (" + pp(n.condition, d) + ") ";
 
@@ -204,16 +204,16 @@ function pp(n, d, inLetHead) {
                 p += "  case " + pp(ca.caseLabel, d) + ":\n";
             else
                 p += "  default:\n";
-            ps = pp(ca.statements, d);
+            var ps = pp(ca.statements, d);
             p += ps.slice(2, ps.length - 2) + "\n";
         }
         p += "}";
         break;
 
       case FOR:
-        p += "for (" + pp(n.setup, d) + "; "
-            + pp(n.condition, d) + "; "
-            + pp(n.update, d) + ") ";
+        p += "for (" + pp(n.setup, d) + "; " +
+            pp(n.condition, d) + "; " +
+            pp(n.update, d) + ") ";
 
         var pb = pp(n.body, d);
         if (!isBlock(n.body))
@@ -234,7 +234,7 @@ function pp(n, d, inLetHead) {
 
       case FOR_IN:
         var u = n.varDecl;
-        p += n.isEach ? "for each (" : "for (";
+        p += "for (";
         p += (u ? pp(u, d) : pp(n.iterator, d)) + " in " +
             pp(n.object, d) + ") ";
 
@@ -284,28 +284,15 @@ function pp(n, d, inLetHead) {
             p += " " + pp(n.value, d);
         break;
 
-      case YIELD:
-        p += "yield";
-        if (n.value)
-            p += " " + pp(n.value, d);
-        break;
-
-      case GENERATOR:
-        p += pp(n.expression, d) + " " + pp(n.tail, d);
-        break;
-
       case WITH:
         p += "with (" + pp(n.object, d) + ") ";
         p += pp(n.body, d);
         break;
 
-      case LET:
       case VAR:
       case CONST:
         var nc = n.children;
-        if (!inLetHead) {
-            p += tokens[n.type] + " ";
-        }
+        p += tokens[n.type] + " ";
         for (var i = 0, j = nc.length; i < j; i++) {
             if (i > 0)
                 p += ", ";
@@ -343,23 +330,23 @@ function pp(n, d, inLetHead) {
       case ASSIGN:
         var nc = n.children;
         var t = n.assignOp;
-        p += pp(nc[0], d) + " " + (t ? tokens[t] : "") + "="
-            + " " + pp(nc[1], d);
+        p += pp(nc[0], d) + " " + (t ? tokens[t] : "") + "=" +
+            " " + pp(nc[1], d);
         break;
 
       case HOOK:
         var nc = n.children;
-        p += "(" + pp(nc[0], d) + " ? "
-            + pp(nc[1], d) + " : "
-            + pp(nc[2], d);
+        p += "(" + pp(nc[0], d) + " ? " +
+            pp(nc[1], d) + " : " +
+            pp(nc[2], d);
         p += ")";
         break;
 
       case OR:
       case AND:
         var nc = n.children;
-        p += "(" + pp(nc[0], d) + " " + tokens[n.type] + " "
-            + pp(nc[1], d);
+        p += "(" + pp(nc[0], d) + " " + tokens[n.type] + " " +
+            pp(nc[1], d);
         p += ")";
         break;
 
@@ -385,8 +372,8 @@ function pp(n, d, inLetHead) {
       case DIV:
       case MOD:
         var nc = n.children;
-        p += "(" + pp(nc[0], d) + " " + tokens[n.type] + " "
-            + pp(nc[1], d) + ")";
+        p += "(" + pp(nc[0], d) + " " + tokens[n.type] + " " +
+            pp(nc[1], d) + ")";
         break;
 
       case DELETE:
@@ -446,7 +433,7 @@ function pp(n, d, inLetHead) {
         for (var i = 0, j = nc.length; i < j; i++) {
             if(nc[i])
                 p += pp(nc[i], d);
-            p += ","
+            p += ",";
         }
         p += "]";
         break;
@@ -491,7 +478,7 @@ function pp(n, d, inLetHead) {
                  * those also.
                  */
                 var propName = tc[0].value;
-                if (typeof propName === "string" && !Lexer.isIdentifier(propName)) {
+                if (typeof propName === "string" && !Tailspin.Lexer.isIdentifier(propName)) {
                     l = nodeStr(tc[0]);
                 } else {
                     l = pp(tc[0], d);
@@ -550,3 +537,6 @@ exports.pp = pp;
 
 return exports;
 })();
+// CUT>
+})();
+// <CUT

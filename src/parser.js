@@ -1360,7 +1360,7 @@ Pp.ShiftExpression = function ShiftExpression() {
      * so unset the flag that prohibits recognizing it.
      */
     var x2 = this.x.update({ inForLoopInit: false });
-        this.withContext(x2, function() {
+    this.withContext(x2, function() {
         n = this.AddExpression();
         while (this.match(LSH) || this.match(RSH) || this.match(URSH)) {
             n2 = this.newNode();

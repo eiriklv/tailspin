@@ -2612,7 +2612,8 @@ var Tailspin = new function() {
       nativeBase = new Function("return this")();
       sandbox = iframe.contentWindow;
     } else {
-      eval(sandboxFns);
+      var nonstrictEval = eval;
+      nonstrictEval(sandboxFns);
       nativeBase = new Function("return this")();
       sandbox = nativeBase;
     }

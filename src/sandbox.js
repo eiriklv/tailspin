@@ -87,7 +87,10 @@ else {
     // because there is more chance of polluting the host interpreter.
     // But if we are unable to create an iframe to contain sandboxed versions of
     // Object, Array etc. this will have to do.
-    eval(sandboxFns);
+    
+    // Get non-strict evaluation by calling 'eval()' as a function non named 'eval'.
+    var nonstrictEval = eval;
+    nonstrictEval(sandboxFns);
     
     nativeBase = (new Function("return this"))();
     sandbox = nativeBase;

@@ -33,7 +33,7 @@ console.log(o.msg);
         eval: false
       });
     
-    compressor = UglifyJS.Compressor({warnings:true});
+    compressor = UglifyJS.Compressor({warnings:true, comparisons:false});
     ast = ast.transform(compressor);
     
     ast.figure_out_scope();

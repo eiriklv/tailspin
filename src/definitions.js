@@ -214,7 +214,7 @@ var tokenIds = {};
 
 // Building up a string to be eval'd in different contexts.
 var consts = "var ";
-for (var i = 0, j = tokens.length; i < j; i++) {
+for (var i = 0, c = tokens.length; i < c; i++) {
     if (i > 0) {
         consts += ", ";
     }
@@ -239,15 +239,16 @@ for (var i = 0, j = tokens.length; i < j; i++) {
 consts += ";";
 
 var isStatementStartCode = {};
-for (i = 0, j = statementStartTokens.length; i < j; i++) {
+for (i = 0, c = statementStartTokens.length; i < c; i++) {
     isStatementStartCode[keywords[statementStartTokens[i]]] = true;
 }
 
 // Map assignment operators to their indexes in the tokens array.
-var assignOps = ['|', '^', '&', '<<', '>>', '>>>', '+', '-', '*', '/', '%'];
+var assignOps = {};
+var assignArray = ['|', '^', '&', '<<', '>>', '>>>', '+', '-', '*', '/', '%'];
 
-for (i = 0, j = assignOps.length; i < j; i++) {
-    var t = assignOps[i];
+for (i = 0, c = assignArray.length; i < c; i++) {
+    var t = assignArray[i];
     assignOps[t] = tokens[t];
 }
 

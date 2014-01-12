@@ -2608,7 +2608,7 @@ var Tailspin = new function() {
       var iframe = document.createElement("iframe");
       iframe.style.display = "none";
       document.body.appendChild(iframe);
-      iframe.contentWindow.document.write('<script type="text/javascript">' + sandboxFns + "</script>");
+      iframe.contentWindow.document.write('<script type="text/javascript">' + sandboxFns + "</scr" + "ipt>");
       nativeBase = new Function("return this")();
       sandbox = iframe.contentWindow;
     } else {
@@ -2864,15 +2864,18 @@ var Tailspin = new function() {
     });
     functionInternals.set(spliceFn, {
       call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
-        var oldItems = sandbox.Array.prototype.slice.apply(t);
-        var newPrev = function() {
-          var c = oldItems.length;
-          t.length = c;
-          for (var i = 0; i < c; i++) {
-            t[i] = oldItems[i];
-          }
-          prev();
-        };
+        var newPrev;
+        if (prev) {
+          var oldItems = sandbox.Array.prototype.slice.apply(t);
+          newPrev = function() {
+            var c = oldItems.length;
+            t.length = c;
+            for (var i = 0; i < c; i++) {
+              t[i] = oldItems[i];
+            }
+            prev();
+          };
+        }
         next(sandbox.apply(spliceFn, t, a), newPrev);
       },
       construct: function(f, a, x, next, ret, cont, brk, thrw, prev) {}
@@ -2889,15 +2892,18 @@ var Tailspin = new function() {
     });
     functionInternals.set(sortFn, {
       call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
-        var oldItems = sandbox.Array.prototype.slice.apply(t);
-        var newPrev = function() {
-          var c = oldItems.length;
-          t.length = c;
-          for (var i = 0; i < c; i++) {
-            t[i] = oldItems[i];
-          }
-          prev();
-        };
+        var newPrev;
+        if (prev) {
+          var oldItems = sandbox.Array.prototype.slice.apply(t);
+          newPrev = function() {
+            var c = oldItems.length;
+            t.length = c;
+            for (var i = 0; i < c; i++) {
+              t[i] = oldItems[i];
+            }
+            prev();
+          };
+        }
         next(sandbox.apply(sortFn, t, a), newPrev);
       },
       construct: function(f, a, x, next, ret, cont, brk, thrw, prev) {}

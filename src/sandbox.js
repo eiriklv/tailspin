@@ -77,7 +77,8 @@ if (typeof document === "object") {
     iframe.style.display = "none";
     document.body.appendChild(iframe);
     
-    iframe.contentWindow.document.write('<script type="text/javascript">'+sandboxFns+'</script>');
+    // Split the script tag so that if this needs to be inside a script tag we don't end the tag.
+    iframe.contentWindow.document.write('<script type="text/javascript">'+sandboxFns+"</scr"+"ipt>");
     
     nativeBase = (new Function("return this"))();
     sandbox = iframe.contentWindow;
@@ -393,14 +394,17 @@ functionInternals.set(unshiftFn, {
 
 functionInternals.set(spliceFn, {
     call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
-        var oldItems = sandbox.Array.prototype.slice.apply(t);
-        var newPrev = function() {
-            var c = oldItems.length;
-            t.length = c;
-            for (var i=0; i<c; i++) {
-                t[i] = oldItems[i];
+        var newPrev;
+        if (prev) {
+            var oldItems = sandbox.Array.prototype.slice.apply(t);
+            newPrev = function() {
+                var c = oldItems.length;
+                t.length = c;
+                for (var i=0; i<c; i++) {
+                    t[i] = oldItems[i];
+                }
+                prev();
             }
-            prev();
         }
         next(sandbox.apply(spliceFn, t, a), newPrev);
     },
@@ -422,14 +426,17 @@ functionInternals.set(reverseFn, {
 
 functionInternals.set(sortFn, {
     call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
-        var oldItems = sandbox.Array.prototype.slice.apply(t);
-        var newPrev = function() {
-            var c = oldItems.length;
-            t.length = c;
-            for (var i=0; i<c; i++) {
-                t[i] = oldItems[i];
+        var newPrev;
+        if (prev) {
+            var oldItems = sandbox.Array.prototype.slice.apply(t);
+            newPrev = function() {
+                var c = oldItems.length;
+                t.length = c;
+                for (var i=0; i<c; i++) {
+                    t[i] = oldItems[i];
+                }
+                prev();
             }
-            prev();
         }
         next(sandbox.apply(sortFn, t, a), newPrev);
     },

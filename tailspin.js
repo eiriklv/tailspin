@@ -879,6 +879,7 @@ var Tailspin = new function() {
       this.defaultLoopTarget = null;
       this.defaultTarget = null;
       this.strictMode = strictMode;
+      this.pragmas = [];
     }
     StaticContext.prototype = {
       update: function(ext) {
@@ -1122,6 +1123,22 @@ var Tailspin = new function() {
     Pp.MaybeRightParen = function MaybeRightParen(p) {
       if (p === LEFT_PAREN) this.mustMatch(RIGHT_PAREN);
     };
+    Pp.checkContextForStrict = function() {
+      for (var i = 0, c = this.x.pragmas.length; i < c; i++) {
+        var p = this.x.pragmas[i];
+        eval('"use strict"; ' + this.t.source.substring(p.start, p.end));
+      }
+      if (this.x.inFunction) {
+        this.checkValidIdentifierIfStrict("function", this.x.inFunction.name);
+        var params = this.x.inFunction.params;
+        for (var i = 0, c = params.length; i < c; i++) {
+          this.checkValidIdentifierIfStrict("parameter", params[i]);
+          if (params.indexOf(params[i]) !== i) {
+            this.fail("Cannot declare a parameter named '" + params[i] + "' more than once in strict mode");
+          }
+        }
+      }
+    };
     Pp.Statements = function Statements(n, topLevel) {
       var prologue = !!topLevel;
       try {
@@ -1135,17 +1152,9 @@ var Tailspin = new function() {
             if (n2.pragma === "strict") {
               this.x.strictMode = true;
               n.strict = true;
-              if (this.x.inFunction) {
-                this.checkValidIdentifierIfStrict("function", this.x.inFunction.name);
-                var params = this.x.inFunction.params;
-                for (var i = 0, c = params.length; i < c; i++) {
-                  this.checkValidIdentifierIfStrict("parameter", params[i]);
-                  if (params.indexOf(params[i]) !== i) {
-                    this.fail("Cannot declare a parameter named '" + params[i] + "' more than once in strict mode");
-                  }
-                }
-              }
+              this.checkContextForStrict();
             }
+            this.x.pragmas.push(n2);
           } else {
             prologue = false;
           }

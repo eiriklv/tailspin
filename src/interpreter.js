@@ -675,9 +675,8 @@ executeFunctions[TRY] = function exTry(n, x, next, ret, cont, brk, thrw, prev) {
             return function(r, prev) {
                 // We may already be returning something from the try or catch
                 // blocks so nextWrap passes that value through to the wrapped function.
-                var savedResult = x.result;
                 var nextWrap = function(ignored, prev) {
-                    x.result = savedResult;
+                    x.result = r;
                     fn(r, prev);
                 };
                 execute(n.finallyBlock, x, nextWrap, ret, cont, brk, thrw, prev);

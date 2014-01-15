@@ -3743,9 +3743,8 @@ var Tailspin = new function() {
       if (n.finallyBlock) {
         var finalWrap = function(fn, ret, cont, brk, thrw) {
           return function(r, prev) {
-            var savedResult = x.result;
             var nextWrap = function(ignored, prev) {
-              x.result = savedResult;
+              x.result = r;
               fn(r, prev);
             };
             execute(n.finallyBlock, x, nextWrap, ret, cont, brk, thrw, prev);

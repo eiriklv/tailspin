@@ -102,7 +102,6 @@ function StaticContext(parentScript, parentBlock, inFunction, strictMode) {
     this.defaultLoopTarget = null;
     this.defaultTarget = null;
     this.strictMode = strictMode;
-    this.pragmas = [];
 }
 
 StaticContext.prototype = {
@@ -407,9 +406,9 @@ Pp.MaybeRightParen = function MaybeRightParen(p) {
 
 Pp.checkContextForStrict = function() {
     // Ensure the previous pragmas are valid in strict mode.
-    for (var i=0, c=this.x.pragmas.length; i<c; i++) {
-        var p = this.x.pragmas[i];
-        eval('"use strict"; '+this.t.source.substring(p.start, p.end));
+    var pragmas = this.x.parentBlock.children;
+    for (var i=0, c=pragmas.length-1; i<c; i++) {
+        eval('"use strict"; '+this.t.source.substring(pragmas[i].start, pragmas[i].end));
     }
     
     // Check identifiers are valid in strict mode.
@@ -446,7 +445,6 @@ Pp.Statements = function Statements(n, topLevel) {
                     n.strict = true;
                     this.checkContextForStrict();
                 }
-                this.x.pragmas.push(n2);
             }
             else {
                 prologue = false;

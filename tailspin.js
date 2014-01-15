@@ -879,7 +879,6 @@ var Tailspin = new function() {
       this.defaultLoopTarget = null;
       this.defaultTarget = null;
       this.strictMode = strictMode;
-      this.pragmas = [];
     }
     StaticContext.prototype = {
       update: function(ext) {
@@ -1124,9 +1123,9 @@ var Tailspin = new function() {
       if (p === LEFT_PAREN) this.mustMatch(RIGHT_PAREN);
     };
     Pp.checkContextForStrict = function() {
-      for (var i = 0, c = this.x.pragmas.length; i < c; i++) {
-        var p = this.x.pragmas[i];
-        eval('"use strict"; ' + this.t.source.substring(p.start, p.end));
+      var pragmas = this.x.parentBlock.children;
+      for (var i = 0, c = pragmas.length - 1; i < c; i++) {
+        eval('"use strict"; ' + this.t.source.substring(pragmas[i].start, pragmas[i].end));
       }
       if (this.x.inFunction) {
         this.checkValidIdentifierIfStrict("function", this.x.inFunction.name);
@@ -1154,7 +1153,6 @@ var Tailspin = new function() {
               n.strict = true;
               this.checkContextForStrict();
             }
-            this.x.pragmas.push(n2);
           } else {
             prologue = false;
           }

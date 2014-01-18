@@ -3059,7 +3059,7 @@ var Tailspin = new function() {
       for (var i = 1; i < fint.length; i++) {
         args += ",a" + i;
       }
-      var fnStr = "(function(" + args + "){\n        if (arguments[arguments.length-1] !== continuationMarker) {\n            var t = (this === nativeBase? undefined : this);\n            return fint.call(newFn, t, arguments, x);\n        }})";
+      var fnStr = "(function(" + args + "){\n        if (arguments[arguments.length-1] !== continuationMarker) {\n            return fint.call(newFn, this, arguments, x);\n        }})";
       var newFn = sandbox.newFnFunction(continuationMarker, fint, x, fnStr);
       functionInternals.set(newFn, fint);
       return newFn;
@@ -3172,10 +3172,14 @@ var Tailspin = new function() {
       call: function(f, t, a, x, next, ret, cont, brk, thrw, prev, options) {
         var n = this.node;
         var x2 = interpreter.createFunctionExecutionContext(n.body.strict);
+        var isGlobalThis = t === nativeBase || t === sandbox.nativeBase || t === global;
+        if (isGlobalThis && !next) {
+          t = undefined;
+        }
         if (x2.strict && options && options.callViaFunctionApply) {
           x2.thisObject = t;
         } else if (x2.strict) {
-          x2.thisObject = t !== global ? t : undefined;
+          x2.thisObject = !isGlobalThis ? t : undefined;
         } else {
           x2.thisObject = toObject(t) || global;
         }

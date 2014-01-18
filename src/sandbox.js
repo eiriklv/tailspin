@@ -650,8 +650,7 @@ function newFunction(n, x) {
     // if 'this' is the native global object (ie. DOMWindow) then we want to use our own global object
     var fnStr = "(function("+args+"){\n\
         if (arguments[arguments.length-1] !== continuationMarker) {\n\
-            var t = (this === nativeBase? undefined : this);\n\
-            return fint.call(newFn, t, arguments, x);\n\
+            return fint.call(newFn, this, arguments, x);\n\
         }})";
     
     // Pass the important values through to the sandbox.
@@ -790,12 +789,18 @@ var FIp = FunctionInternals.prototype = {
         var n = this.node;
         var x2 = interpreter.createFunctionExecutionContext(n.body.strict);
         
+        var isGlobalThis = t === nativeBase || t === sandbox.nativeBase || t === global;
+        // Clear out any global 'this' when called as a native function.
+        if (isGlobalThis && !next) {
+            t = undefined;
+        }
+        
         // Get the 'this' object for the function call.
         if (x2.strict && options && options.callViaFunctionApply) {
             x2.thisObject = t;
         }
         else if (x2.strict) {
-            x2.thisObject = t !== global? t : undefined;
+            x2.thisObject = !isGlobalThis? t : undefined;
         }
         else {
             x2.thisObject = toObject(t) || global;

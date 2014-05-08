@@ -77,7 +77,8 @@ if (typeof document === "object") {
     iframe.style.display = "none";
     document.body.appendChild(iframe);
     
-    iframe.contentWindow.document.write('<script type="text/javascript">'+sandboxFns+'</script>');
+    // Split the script tag so that if this needs to be inside a script tag we don't end the tag.
+    iframe.contentWindow.document.write('<script type="text/javascript">'+sandboxFns+"</scr"+"ipt>");
     
     nativeBase = (new Function("return this"))();
     sandbox = iframe.contentWindow;
@@ -393,14 +394,17 @@ functionInternals.set(unshiftFn, {
 
 functionInternals.set(spliceFn, {
     call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
-        var oldItems = sandbox.Array.prototype.slice.apply(t);
-        var newPrev = function() {
-            var c = oldItems.length;
-            t.length = c;
-            for (var i=0; i<c; i++) {
-                t[i] = oldItems[i];
+        var newPrev;
+        if (prev) {
+            var oldItems = sandbox.Array.prototype.slice.apply(t);
+            newPrev = function() {
+                var c = oldItems.length;
+                t.length = c;
+                for (var i=0; i<c; i++) {
+                    t[i] = oldItems[i];
+                }
+                prev();
             }
-            prev();
         }
         next(sandbox.apply(spliceFn, t, a), newPrev);
     },
@@ -422,14 +426,17 @@ functionInternals.set(reverseFn, {
 
 functionInternals.set(sortFn, {
     call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
-        var oldItems = sandbox.Array.prototype.slice.apply(t);
-        var newPrev = function() {
-            var c = oldItems.length;
-            t.length = c;
-            for (var i=0; i<c; i++) {
-                t[i] = oldItems[i];
+        var newPrev;
+        if (prev) {
+            var oldItems = sandbox.Array.prototype.slice.apply(t);
+            newPrev = function() {
+                var c = oldItems.length;
+                t.length = c;
+                for (var i=0; i<c; i++) {
+                    t[i] = oldItems[i];
+                }
+                prev();
             }
-            prev();
         }
         next(sandbox.apply(sortFn, t, a), newPrev);
     },
@@ -643,8 +650,7 @@ function newFunction(n, x) {
     // if 'this' is the native global object (ie. DOMWindow) then we want to use our own global object
     var fnStr = "(function("+args+"){\n\
         if (arguments[arguments.length-1] !== continuationMarker) {\n\
-            var t = (this === nativeBase? undefined : this);\n\
-            return fint.call(newFn, t, arguments, x);\n\
+            return fint.call(newFn, this, arguments, x);\n\
         }})";
     
     // Pass the important values through to the sandbox.
@@ -783,12 +789,18 @@ var FIp = FunctionInternals.prototype = {
         var n = this.node;
         var x2 = interpreter.createFunctionExecutionContext(n.body.strict);
         
+        var isGlobalThis = t === nativeBase || t === sandbox.nativeBase || t === global;
+        // Clear out any global 'this' when called as a native function.
+        if (isGlobalThis && !next) {
+            t = undefined;
+        }
+        
         // Get the 'this' object for the function call.
         if (x2.strict && options && options.callViaFunctionApply) {
             x2.thisObject = t;
         }
         else if (x2.strict) {
-            x2.thisObject = t !== global? t : undefined;
+            x2.thisObject = !isGlobalThis? t : undefined;
         }
         else {
             x2.thisObject = toObject(t) || global;

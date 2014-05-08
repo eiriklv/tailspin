@@ -1122,6 +1122,22 @@ var Tailspin = new function() {
     Pp.MaybeRightParen = function MaybeRightParen(p) {
       if (p === LEFT_PAREN) this.mustMatch(RIGHT_PAREN);
     };
+    Pp.checkContextForStrict = function() {
+      var pragmas = this.x.parentBlock.children;
+      for (var i = 0, c = pragmas.length - 1; i < c; i++) {
+        eval('"use strict"; ' + this.t.source.substring(pragmas[i].start, pragmas[i].end));
+      }
+      if (this.x.inFunction) {
+        this.checkValidIdentifierIfStrict("function", this.x.inFunction.name);
+        var params = this.x.inFunction.params;
+        for (var i = 0, c = params.length; i < c; i++) {
+          this.checkValidIdentifierIfStrict("parameter", params[i]);
+          if (params.indexOf(params[i]) !== i) {
+            this.fail("Cannot declare a parameter named '" + params[i] + "' more than once in strict mode");
+          }
+        }
+      }
+    };
     Pp.Statements = function Statements(n, topLevel) {
       var prologue = !!topLevel;
       try {
@@ -1135,16 +1151,7 @@ var Tailspin = new function() {
             if (n2.pragma === "strict") {
               this.x.strictMode = true;
               n.strict = true;
-              if (this.x.inFunction) {
-                this.checkValidIdentifierIfStrict("function", this.x.inFunction.name);
-                var params = this.x.inFunction.params;
-                for (var i = 0, c = params.length; i < c; i++) {
-                  this.checkValidIdentifierIfStrict("parameter", params[i]);
-                  if (params.indexOf(params[i]) !== i) {
-                    this.fail("Cannot declare a parameter named '" + params[i] + "' more than once in strict mode");
-                  }
-                }
-              }
+              this.checkContextForStrict();
             }
           } else {
             prologue = false;
@@ -2608,7 +2615,7 @@ var Tailspin = new function() {
       var iframe = document.createElement("iframe");
       iframe.style.display = "none";
       document.body.appendChild(iframe);
-      iframe.contentWindow.document.write('<script type="text/javascript">' + sandboxFns + "</script>");
+      iframe.contentWindow.document.write('<script type="text/javascript">' + sandboxFns + "</scr" + "ipt>");
       nativeBase = new Function("return this")();
       sandbox = iframe.contentWindow;
     } else {
@@ -2864,15 +2871,18 @@ var Tailspin = new function() {
     });
     functionInternals.set(spliceFn, {
       call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
-        var oldItems = sandbox.Array.prototype.slice.apply(t);
-        var newPrev = function() {
-          var c = oldItems.length;
-          t.length = c;
-          for (var i = 0; i < c; i++) {
-            t[i] = oldItems[i];
-          }
-          prev();
-        };
+        var newPrev;
+        if (prev) {
+          var oldItems = sandbox.Array.prototype.slice.apply(t);
+          newPrev = function() {
+            var c = oldItems.length;
+            t.length = c;
+            for (var i = 0; i < c; i++) {
+              t[i] = oldItems[i];
+            }
+            prev();
+          };
+        }
         next(sandbox.apply(spliceFn, t, a), newPrev);
       },
       construct: function(f, a, x, next, ret, cont, brk, thrw, prev) {}
@@ -2889,15 +2899,18 @@ var Tailspin = new function() {
     });
     functionInternals.set(sortFn, {
       call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
-        var oldItems = sandbox.Array.prototype.slice.apply(t);
-        var newPrev = function() {
-          var c = oldItems.length;
-          t.length = c;
-          for (var i = 0; i < c; i++) {
-            t[i] = oldItems[i];
-          }
-          prev();
-        };
+        var newPrev;
+        if (prev) {
+          var oldItems = sandbox.Array.prototype.slice.apply(t);
+          newPrev = function() {
+            var c = oldItems.length;
+            t.length = c;
+            for (var i = 0; i < c; i++) {
+              t[i] = oldItems[i];
+            }
+            prev();
+          };
+        }
         next(sandbox.apply(sortFn, t, a), newPrev);
       },
       construct: function(f, a, x, next, ret, cont, brk, thrw, prev) {}
@@ -3046,7 +3059,7 @@ var Tailspin = new function() {
       for (var i = 1; i < fint.length; i++) {
         args += ",a" + i;
       }
-      var fnStr = "(function(" + args + "){\n        if (arguments[arguments.length-1] !== continuationMarker) {\n            var t = (this === nativeBase? undefined : this);\n            return fint.call(newFn, t, arguments, x);\n        }})";
+      var fnStr = "(function(" + args + "){\n        if (arguments[arguments.length-1] !== continuationMarker) {\n            return fint.call(newFn, this, arguments, x);\n        }})";
       var newFn = sandbox.newFnFunction(continuationMarker, fint, x, fnStr);
       functionInternals.set(newFn, fint);
       return newFn;
@@ -3159,10 +3172,14 @@ var Tailspin = new function() {
       call: function(f, t, a, x, next, ret, cont, brk, thrw, prev, options) {
         var n = this.node;
         var x2 = interpreter.createFunctionExecutionContext(n.body.strict);
+        var isGlobalThis = t === nativeBase || t === sandbox.nativeBase || t === global;
+        if (isGlobalThis && !next) {
+          t = undefined;
+        }
         if (x2.strict && options && options.callViaFunctionApply) {
           x2.thisObject = t;
         } else if (x2.strict) {
-          x2.thisObject = t !== global ? t : undefined;
+          x2.thisObject = !isGlobalThis ? t : undefined;
         } else {
           x2.thisObject = toObject(t) || global;
         }
@@ -3730,9 +3747,8 @@ var Tailspin = new function() {
       if (n.finallyBlock) {
         var finalWrap = function(fn, ret, cont, brk, thrw) {
           return function(r, prev) {
-            var savedResult = x.result;
             var nextWrap = function(ignored, prev) {
-              x.result = savedResult;
+              x.result = r;
               fn(r, prev);
             };
             execute(n.finallyBlock, x, nextWrap, ret, cont, brk, thrw, prev);

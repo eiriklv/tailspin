@@ -404,6 +404,27 @@ Pp.MaybeRightParen = function MaybeRightParen(p) {
         this.mustMatch(RIGHT_PAREN);
 }
 
+Pp.checkContextForStrict = function() {
+    // Ensure the previous pragmas are valid in strict mode.
+    var pragmas = this.x.parentBlock.children;
+    for (var i=0, c=pragmas.length-1; i<c; i++) {
+        eval('"use strict"; '+this.t.source.substring(pragmas[i].start, pragmas[i].end));
+    }
+    
+    // Check identifiers are valid in strict mode.
+    if (this.x.inFunction) {
+        this.checkValidIdentifierIfStrict("function", this.x.inFunction.name);
+        var params = this.x.inFunction.params;
+        for (var i=0, c=params.length; i<c; i++) {
+            this.checkValidIdentifierIfStrict("parameter", params[i]);
+            if (params.indexOf(params[i]) !== i) {
+                this.fail("Cannot declare a parameter named '"+params[i]+
+                    "' more than once in strict mode");
+            }
+        }
+    }
+}
+
 /*
  * Statements :: (node[, boolean]) -> void
  *
@@ -422,20 +443,10 @@ Pp.Statements = function Statements(n, topLevel) {
                 if (n2.pragma === "strict") {
                     this.x.strictMode = true;
                     n.strict = true;
-                    if (this.x.inFunction) {
-                        // check identifiers if we are in strict mode
-                        this.checkValidIdentifierIfStrict("function", this.x.inFunction.name);
-                        var params = this.x.inFunction.params;
-                        for (var i=0, c=params.length; i<c; i++) {
-                            this.checkValidIdentifierIfStrict("parameter", params[i]);
-                            if (params.indexOf(params[i]) !== i) {
-                                this.fail("Cannot declare a parameter named '"+params[i]+
-                                    "' more than once in strict mode");
-                            }
-                        }
-                    }
+                    this.checkContextForStrict();
                 }
-            } else {
+            }
+            else {
                 prologue = false;
             }
         }

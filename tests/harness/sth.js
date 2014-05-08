@@ -41,6 +41,11 @@ function BrowserRunner() {
 
     $.ajax({async: false,
             dataType: "text",
+            success: function(data){tailspinContents = data;},
+            url:"../tailspin.js"});
+
+    $.ajax({async: false,
+            dataType: "text",
             success: function(data){globalScopeContents = data;},
             url:harnessDir+"gs.js"});
 
@@ -177,7 +182,10 @@ function BrowserRunner() {
             }
         }
 
-        idoc.writeln("<script language='javascript1.7' src='../tailspin.min.js'></script>");
+        //idoc.writeln("<script language='javascript1.7' src='../tailspin.min.js'></script>");
+        idoc.writeln("<script type='text/javascript'>");
+        idoc.writeln(tailspinContents);
+        idoc.writeln("</script>");
 
         //Write out all of our helper functions
         //idoc.writeln("<script type='text/javascript' src='harness/sta.js'>" + "</script>");

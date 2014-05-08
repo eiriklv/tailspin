@@ -1,0 +1,64 @@
+#status-bar {
+    height: 24px;
+    background: #cacaca; /* Old browsers */
+    background: linear-gradient(to bottom, #cacaca 0%,#f4f4f4 5%,#f4f4f4 50%,#e6e6e6 51%,#e6e6e6 95%,#b8b8b8 100%);
+}
+
+#debugger {
+    border: 1px solid #ACACAC;
+    border-top: none;
+    box-sizing: border-box;
+}
+
+#debugger .CodeMirror {
+    border: none;
+    margin-top: 0px;
+}
+
+
+#status-bar button {
+    width: 32px;
+    height: 24px;
+    background-position: center;
+    background-size:16px 16px;
+    border: 1px solid #ACACAC;
+    margin-left: -1px;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,0.7);
+    outline: none;
+}
+
+#status-bar button:active:enabled {
+    background-color: rgba(0,0,0,0.3);
+    /* Darker border */
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,0.1);
+    border: 1px solid #888;
+}
+
+#status-bar button:disabled {
+    opacity: 0.5;
+}
+
+
+#run-button {
+    background: url(images/debuggerRun.svg) no-repeat;
+}
+
+#stop-button {
+    background: url(images/debuggerStop.svg) no-repeat;
+}
+
+#pause-button {
+    background: url(images/debuggerPause.svg) no-repeat;
+}
+
+#step-over-button {
+    background: url(images/debuggerStepOver.svg) no-repeat;
+}
+
+#step-into-button {
+    background: url(images/debuggerStepInto.svg) no-repeat;
+}
+
+#step-out-button {
+    background: url(images/debuggerStepOut.svg) no-repeat;
+}

@@ -1,0 +1,32 @@
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <title>Tailspin Example - Debugger</title>
+    
+    <script src="../lib/codemirror-compressed.js"></script>
+    <link rel="stylesheet" href="../lib/codemirror.css">
+    
+    <script type="text/javascript" src="../../tailspin.js"></script>
+    <script src="debugger.js"></script>
+    
+    <link rel="stylesheet" type="text/css" href="../examples.css">
+    <link rel="stylesheet" href="debugger.css">
+</head>
+
+<body>
+<div id="debugger">
+<div id="status-bar"><button id="run-button" onclick="tailspinDebugger.run();"></button><button id="stop-button" onclick="tailspinDebugger.stop();"></button><button id="pause-button" onclick="tailspinDebugger.pause();"></button><button id="step-over-button" onclick="tailspinDebugger.stepOver();"></button><button id="step-into-button" onclick="tailspinDebugger.stepInto();"></button><button id="step-out-button" onclick="tailspinDebugger.stepOut();"></button></div>
+<textarea id="source">var a = 20;
+var b = 5;
+
+function sqr(x) {
+    return x*x;
+}
+
+a = a * sqr(b);</textarea>
+</div>
+
+<textarea id="console"></textarea>
+
+</body>
+</html>

@@ -71,8 +71,20 @@
     width: 100%;
 }
 
-#speed-slider {
-    float:right;
+#speed-span {
+    float: right;
+    height: 24px;
+}
+
+#speed-span input {
+    height: 24px;
+    margin: 0px;
+}
+
+#speed-span img {
+    padding: 4px;
+    width: 16px;
+    height: 16px;
 }
 /*
 input[type="range"]{

@@ -41,7 +41,6 @@ function Debugger() {
     
     this.timeSlider = document.getElementById("time-slider");
     var jump = function(e) {
-        console.log(e.target.valueAsNumber);
         this.jumpToStep(e.target.valueAsNumber);
     }.bind(this);
     this.timeSlider.oninput = jump;
@@ -167,12 +166,25 @@ Debugger.prototype = {
         this.stepCount = 0;
         this.currentLine = -1;
         this.stackDepth = 0;
+        this.pausedLine = -1;
+        this.pausedStackDepth = 0;
         
         this.updateButtons();
         
+        var self = this;
+        var prev = function() {
+            self.state = "stopped";
+            self.stepCount = -1;
+            self.highlightLine(-1);
+            self.timeSlider.value = self.stepCount;
+            
+            delete self.executePrev;
+            self.executeNext = null;
+        };
+        
         // Run the code.
         var source = mySource.getValue();
-        this.interpreter.evaluateInContext(source, "source", 0, x, this.returnFn.bind(this), this.errorFn.bind(this), this.reset.bind(this));
+        this.interpreter.evaluateInContext(source, "source", 0, x, this.returnFn.bind(this), this.errorFn.bind(this), prev);
     },
     
     continueWithState: function(state) {
@@ -230,8 +242,8 @@ Debugger.prototype = {
     
     doPause: function(n, x, next, prev) {
         this.state = "paused";
-        this.currentLine = n.lineno;
-        this.stackDepth = x.stack.length;
+        this.pausedStackDepth = x.stack.length;
+        this.pausedLine = n.lineno;
         
         // Save a continuation 'executeNext' which will continue the execution of the code.
         this.executeNext = function() {
@@ -252,12 +264,20 @@ Debugger.prototype = {
     control: function(n, x, next, prev) {
         var myDebugger = this;
         
+        // 'this.pausedStackDepth' is the last line the user stopped on and is used for user control.
+        // 'this.stackDepth' is the last time control was called and is used to count the number of steps taken.
+        var stackDelta = x.stack.length - this.stackDepth;
+        var pausedStackDelta = x.stack.length - this.pausedStackDepth;
+        
         // Only consider pausing if we are at a new line.
-        var newLine = this.currentLine !== n.lineno || x.stack.length !== this.stackDepth;
+        var newLine = this.currentLine !== n.lineno || stackDelta !== 0;
         if (!newLine) {
             next(prev);
             return; // EARLY RETURN
         }
+        
+        this.currentLine = n.lineno;
+        this.stackDepth = x.stack.length;
         
         var oldStep = this.stepCount;
         
@@ -275,6 +295,8 @@ Debugger.prototype = {
                 }
                 myDebugger.stepCount = oldStep;
                 
+                myDebugger.currentLine = n.lineno;
+                myDebugger.stackDepth = x.stack.length;
                 //control.currentNode = n;
                 //control.currentExecutionContext = x;
                 //control.currentLineno = n.lineno;
@@ -311,7 +333,7 @@ Debugger.prototype = {
                 newNext(prev);
                 break;
             case "step-into":
-                if (n.lineno != this.currentLine) {
+                if (this.pausedLine !== n.lineno || pausedStackDelta !== 0) {
                     this.doPause(n, x, newNext, prev);
                 }
                 else {
@@ -319,7 +341,7 @@ Debugger.prototype = {
                 }
                 break;
             case "step-over":
-                if (n.lineno != this.currentLine && x.stack.length <= this.stackDepth) {
+                if (this.pausedLine !== n.lineno || pausedStackDelta <= 0) {
                     this.doPause(n, x, newNext, prev);
                 }
                 else {
@@ -327,7 +349,7 @@ Debugger.prototype = {
                 }
                 break;
             case "step-out":
-                if (n.lineno != this.currentLine && x.stack.length < this.stackDepth) {
+                if (this.pausedLine !== n.lineno || pausedStackDelta < 0) {
                     this.doPause(n, x, newNext, prev);
                 }
                 else {

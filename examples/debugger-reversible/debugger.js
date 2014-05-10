@@ -60,7 +60,10 @@ Debugger.prototype = {
         this.executePrev = null;
         this.highlightLine(-1);
         
-        this.timeSlider.value = 0;
+        this.stepCount = -1;
+        
+        this.timeSlider.value = -1;
+        this.timeSlider.min = -1;
         this.timeSlider.disabled = true;
         
         var setSteps = function(n) {
@@ -123,21 +126,23 @@ Debugger.prototype = {
         // For individual instances to implement.
     },
     
-    end: function(output, outputClass) {
+    end: function(output, outputClass, prev) {
         if (output) {
             this.log(output, outputClass);
         }
         this.state = "stopped";
         this.executeNext = null;
+        this.executePrev = prev;
         this.highlightLine(-1);
+        this.timeSlider.value = this.stepCount;
         
         this.updateButtons();
     },
-    returnFn: function(result) {
-        this.end(JSON.stringify(result), "output");
+    returnFn: function(result, prev) {
+        this.end(JSON.stringify(result), "output", prev);
     },
-    errorFn: function(result) {
-        this.end("ERROR: "+JSON.stringify(result), "error");
+    errorFn: function(result, prev) {
+        this.end("ERROR: "+JSON.stringify(result), "error", prev);
     },
     start: function() {
         // Create an evaluation context that describes the how the code is to be executed.
@@ -148,6 +153,7 @@ Debugger.prototype = {
         
         x.control = this.control.bind(this);
         
+        this.stepCount = 0;
         this.currentLine = -1;
         this.stackDepth = 0;
         
@@ -193,10 +199,6 @@ Debugger.prototype = {
     pause: function() {
         this.state = "paused";
     },
-    stop: function() {
-        this.state = "stopped";
-        this.end();
-    },
     
     doPause: function(n, x, next, prev) {
         this.state = "paused";
@@ -214,6 +216,7 @@ Debugger.prototype = {
         
         // Highlight the new line.
         this.highlightLine(n.lineno-1);
+        this.timeSlider.value = this.stepCount;
         
         this.updateButtons();
     },
@@ -228,19 +231,21 @@ Debugger.prototype = {
             return; // EARLY RETURN
         }
         
+        var oldStep = this.stepCount;
+        
         // Adjust the next continuation, to add a hook into the prev
         // continuation so that we can pause the reverse execution.
         var newNext = function(prev) {
             // Hit a new line, increment the step count.
-            //control.stepCount++;
+            myDebugger.stepCount++;
             
             // Create a newPrev that allows stopping.
             var newPrev2 = function() {
                 // step the stepCount backwards
-                /*if (control.stepCount-1 !== oldStep) {
+                if (myDebugger.stepCount-1 !== oldStep) {
                     throw "Step count mismatch in reverse execution.";
                 }
-                control.stepCount = oldStep;*/
+                myDebugger.stepCount = oldStep;
                 
                 //control.currentNode = n;
                 //control.currentExecutionContext = x;

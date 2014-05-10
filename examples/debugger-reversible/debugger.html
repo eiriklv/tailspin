@@ -19,14 +19,15 @@
 <div id="status-bar"><button id="animate-button" onclick="tailspinDebugger.run();"></button><button id="step-back-button" onclick="tailspinDebugger.back();"></button><button id="step-forward-button" onclick="tailspinDebugger.forward();"></button><button id="step-over-button" onclick="tailspinDebugger.stepOver();"></button><button id="step-out-button" onclick="tailspinDebugger.stepOut();"></button>
 <input type="range" id="speed-slider"></input></div>
 <div id="timebar"><input type="range" id="time-slider"></input></div>
-<textarea id="source">var a = 20;
-var b = 5;
-
-function sqr(x) {
-    return x*x;
+<textarea id="source">function gcd(a, b) {
+    console.log(a+", "+b);
+    if (b === 0) {
+        return a;
+    }
+    return gcd(b, a % b);
 }
 
-a = a * sqr(b);</textarea>
+gcd(12, 90);</textarea>
 </div>
 
 <textarea id="console"></textarea>

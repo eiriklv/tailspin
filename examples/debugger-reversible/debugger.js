@@ -16,11 +16,6 @@ window.onload = function() {
         myConsole.markText(from, CodeMirror.Pos(myConsole.lastLine()), {className:logClass});
     }
     
-    // Add a single global 'console' that has a log function.
-    tailspinDebugger.interpreter.global.console = {
-        log:function(msg) {consoleLog(msg, 'log');}
-    };
-    
     tailspinDebugger.log = consoleLog;
     
     // Save the code on changes.
@@ -40,11 +35,17 @@ function Debugger() {
     this.stepBackButton = document.getElementById("step-back-button");
     this.stepForwardButton = document.getElementById("step-forward-button");
     /*this.stopButton = document.getElementById("stop-button");
-    this.pauseButton = document.getElementById("pause-button");
+    this.pauseButton = document.getElementById("pause-button");*/
     this.stepOverButton = document.getElementById("step-over-button");
-    this.stepOutButton = document.getElementById("step-out-button");*/
+    this.stepOutButton = document.getElementById("step-out-button");
     
     this.timeSlider = document.getElementById("time-slider");
+    var jump = function(e) {
+        console.log(e.target.valueAsNumber);
+        this.jumpToStep(e.target.valueAsNumber);
+    }.bind(this);
+    this.timeSlider.oninput = jump;
+    this.timeSlider.onchange = jump;
     
     this.reset();
 }
@@ -53,6 +54,12 @@ Debugger.prototype = {
     reset: function() {
         // Create a new interpreter.
         this.interpreter = new Tailspin.Interpreter();
+        
+        // Add a single global 'console' that has a log function.
+        var self = this;
+        this.interpreter.global.console = {
+            log:function(msg) {self.log(msg, 'log');}
+        };
         
         this.state = "stopped";
         this.currentLine = -1;
@@ -71,7 +78,11 @@ Debugger.prototype = {
             this.timeSlider.max = n;
         }.bind(this);
         
-        this.countSteps([{source:mySource.getValue(), url:"my-code", count:true, runCount:true}], setSteps);
+        this.countSteps([
+            {source:"console={log:function(){}}", url:"setup"},
+            {source:mySource.getValue(), url:"my-code", count:true, runCount:true}
+            ]
+            , setSteps);
         
         this.updateButtons();
     },
@@ -93,9 +104,9 @@ Debugger.prototype = {
         this.stepForwardButton.disabled = !running; // Can start by stepping over or into.
         /*this.animateButton.disabled = !running;
         this.stopButton.disabled = this.state === "stopped";
-        this.pauseButton.disabled = running;
+        this.pauseButton.disabled = running;*/
         this.stepOverButton.disabled = !running;
-        this.stepOutButton.disabled = this.state !== "paused";*/
+        this.stepOutButton.disabled = this.state !== "paused";
     },
     
     // Counts the number of steps it takes to run the scripts
@@ -183,6 +194,23 @@ Debugger.prototype = {
             this.executePrev();
         }
     },
+    jumpToStep: function(target) {
+        if (this.state === "jump" && target >= 0) {
+            this.jumpStepTarget = target;
+        }
+        else {
+            this.jumpStepTarget = target;
+            
+            // Go forwards or back to reach target.
+            if (this.stepCount < target) {
+                this.continueWithState("jump");
+            }
+            else if (this.executePrev && this.stepCount > target) {
+                this.state = "jump";
+                this.executePrev();
+            }
+        }
+    },
     
     run: function() {
         this.continueWithState("running");
@@ -252,7 +280,7 @@ Debugger.prototype = {
                 //control.currentLineno = n.lineno;
                 
                 // Stop if we are stepping back or we hit the stepCount target.
-                if (myDebugger.state === "step-back" || (myDebugger.state === "jump to step" && myDebugger.stepCount === myDebugger.stepCountTarget)) {
+                if (myDebugger.state === "step-back" || (myDebugger.state === "jump" && myDebugger.stepCount === myDebugger.jumpStepTarget)) {
                     myDebugger.doPause(n, x, newNext, prev);
                 }
                 else {
@@ -264,6 +292,21 @@ Debugger.prototype = {
         };
         
         switch (this.state) {
+            case "jump":
+                // Stop if we hit the stepCount target.
+                if (this.stepCount === this.jumpStepTarget) {
+                    this.doPause(n, x, newNext, prev);
+                }
+                else if (this.stepCount > this.stepCountTarget) {
+                    // Reverse execution.
+                    prev();
+                    return;
+                }
+                else {
+                    // Otherwise continue execution.
+                    newNext(prev);
+                }
+                break;
             case "running":
                 newNext(prev);
                 break;

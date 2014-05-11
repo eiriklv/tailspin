@@ -43,6 +43,12 @@
     background: url(../images/debuggerAnimate.svg) no-repeat;
 }
 
+#animate-button.pause {
+    background: url(../images/debuggerAnimatePause.svg) no-repeat;
+    background-position: center;
+    background-size:16px 16px;
+}
+
 #step-back-button {
     background: url(../images/debuggerStepBack.svg) no-repeat;
 }

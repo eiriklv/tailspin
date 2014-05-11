@@ -34,10 +34,10 @@ function Debugger() {
     this.animateButton = document.getElementById("animate-button");
     this.stepBackButton = document.getElementById("step-back-button");
     this.stepForwardButton = document.getElementById("step-forward-button");
-    /*this.stopButton = document.getElementById("stop-button");
-    this.pauseButton = document.getElementById("pause-button");*/
     this.stepOverButton = document.getElementById("step-over-button");
     this.stepOutButton = document.getElementById("step-out-button");
+    
+    this.speedSlider = document.getElementById("speed-slider");
     
     this.timeSlider = document.getElementById("time-slider");
     var jump = function(e) {
@@ -97,15 +97,23 @@ Debugger.prototype = {
     },
     
     updateButtons: function() {
-        var running = (this.state === "paused" || this.state === "stopped");
+        var running = !(this.state === "paused" || this.state === "stopped" || this.state === "animate");
         
-        this.stepBackButton.disabled = typeof this.executePrev !== "function";
-        this.stepForwardButton.disabled = !running; // Can start by stepping over or into.
-        /*this.animateButton.disabled = !running;
-        this.stopButton.disabled = this.state === "stopped";
-        this.pauseButton.disabled = running;*/
-        this.stepOverButton.disabled = !running;
-        this.stepOutButton.disabled = this.state !== "paused";
+        var hasPrev = typeof this.executePrev === "function";
+        var hasNext = typeof this.executeNext === "function" || this.stepCount === -1;
+        
+        this.stepBackButton.disabled = !hasPrev || running;
+        this.stepForwardButton.disabled = !hasNext || running; // Can start by stepping over or into.
+        this.animateButton.disabled = !hasNext || running;
+        this.stepOverButton.disabled = !hasNext || running;
+        this.stepOutButton.disabled = !hasNext || running;
+        
+        if (this.state === "animate") {
+            this.animateButton.setAttribute("class", "pause");
+        }
+        else {
+            this.animateButton.removeAttribute("class");
+        }
     },
     
     // Counts the number of steps it takes to run the scripts
@@ -180,6 +188,8 @@ Debugger.prototype = {
             
             delete self.executePrev;
             self.executeNext = null;
+            
+            self.updateButtons();
         };
         
         // Run the code.
@@ -227,6 +237,15 @@ Debugger.prototype = {
     run: function() {
         this.continueWithState("running");
     },
+    animate: function() {
+        if (this.state === "animate") {
+            this.pause();
+            this.updateButtons();
+        }
+        else {
+            this.continueWithState("animate");
+        }
+    },
     stepInto: function() {
         this.continueWithState("step-into");
     },
@@ -240,8 +259,27 @@ Debugger.prototype = {
         this.state = "paused";
     },
     
-    doPause: function(n, x, next, prev) {
-        this.state = "paused";
+    
+    resumeAnimating: function() {
+        if (this.state === "animate") {
+            this.continueWithState("animate");
+        }
+    },
+    
+    animationDelay: function() {
+        var delay = 90-this.speedSlider.valueAsNumber;
+        if (delay > 75) {
+            delay = (delay-75);
+            delay = delay*delay + 75;
+        }
+        
+        // slider     0 -> 15 -> 0 -> 100
+        // delay    300 -> 75 -> 0 -> -10
+        return delay;
+    },
+    
+    doPause: function(n, x, next, prev, state) {
+        this.state = typeof state === "string"? state : "paused";
         this.pausedStackDepth = x.stack.length;
         this.pausedLine = n.lineno;
         
@@ -297,9 +335,6 @@ Debugger.prototype = {
                 
                 myDebugger.currentLine = n.lineno;
                 myDebugger.stackDepth = x.stack.length;
-                //control.currentNode = n;
-                //control.currentExecutionContext = x;
-                //control.currentLineno = n.lineno;
                 
                 // Stop if we are stepping back or we hit the stepCount target.
                 if (myDebugger.state === "step-back" || (myDebugger.state === "jump" && myDebugger.stepCount === myDebugger.jumpStepTarget)) {
@@ -328,9 +363,6 @@ Debugger.prototype = {
                     // Otherwise continue execution.
                     newNext(prev);
                 }
-                break;
-            case "running":
-                newNext(prev);
                 break;
             case "step-into":
                 if (this.pausedLine !== n.lineno || pausedStackDelta !== 0) {
@@ -361,6 +393,29 @@ Debugger.prototype = {
                 break;
             case "stopped":
                 // Don't continue execution.
+                break;
+            case "running":
+                newNext(prev);
+                break;
+            case "animate":
+                // delay is a number 300 -> -10
+                var delay = this.animationDelay();
+                
+                // If delay -1 -> -10: start skipping 1/11 up to 10/11 lines.
+                if (delay < 0 && this.stepCount%11 < -delay) {
+                    newNext(prev);
+                }
+                else {
+                    var animateTimeout = setTimeout(this.resumeAnimating.bind(this), delay*10);
+                    this.doPause(n, x, function(prev) {
+                          window.clearTimeout(animateTimeout);
+                          newNext(prev);
+                        }, function() {
+                          window.clearTimeout(animateTimeout);
+                          prev();
+                        }, "animate");
+                    return;
+                }
                 break;
         }
     }

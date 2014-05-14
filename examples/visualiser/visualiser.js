@@ -23,7 +23,7 @@ window.onload = function() {
     tailspinDebugger.log = console.log;
     
     // Load saved code.
-    /*if (typeof localStorage["support_Support"] === "string") {
+    if (typeof localStorage["support_Support"] === "string") {
         supportDocs[0].src = localStorage["support_Support"];
     }
     if (typeof localStorage["support_Options"] === "string") {
@@ -31,7 +31,7 @@ window.onload = function() {
     }
     if (typeof localStorage["support_Visualisation"] === "string") {
         supportDocs[2].src = localStorage["support_Visualisation"];
-    }*/
+    }
     
     // Setup support tabs.
     var tabs = document.getElementById("docs");

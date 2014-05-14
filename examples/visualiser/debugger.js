@@ -168,7 +168,15 @@ Debugger.prototype = {
         // For individual instances to implement.
     },
     
-    end: function(output, outputClass, prev) {
+    end: function(x, output, outputClass, prev) {
+        if (this.updateCallback) {
+            var newPrev = this.updateCallback(null, x, false, 100, prev);
+            if (newPrev) {
+                prev = newPrev;
+            }
+        }
+        
+        
         if (output) {
             this.log(output, outputClass);
         }
@@ -180,11 +188,11 @@ Debugger.prototype = {
         
         this.updateButtons();
     },
-    returnFn: function(result, prev) {
-        this.end(JSON.stringify(result), "output", prev);
+    returnFn: function(x, result, prev) {
+        this.end(x, JSON.stringify(result), "output", prev);
     },
-    errorFn: function(result, prev) {
-        this.end("ERROR: "+JSON.stringify(result), "error", prev);
+    errorFn: function(x, result, prev) {
+        this.end(x, "ERROR: "+JSON.stringify(result), "error", prev);
     },
     start: function() {
         // Create an evaluation context that describes the how the code is to be executed.
@@ -213,6 +221,10 @@ Debugger.prototype = {
             delete self.executePrev;
             self.executeNext = null;
             
+            if (self.updateCallback) {
+                self.updateCallback(null, x, false, 100);
+            }
+            
             self.updateButtons();
         };
         
@@ -222,17 +234,14 @@ Debugger.prototype = {
             var x2 = this.interpreter.createExecutionContext();
             // Run the source silently first then run the run() function.
             var runFn = function() {
-                /*if (this.updateCallback) {
-                    this.updateCallback(null, this.currentExecutionContext, true, 0);
-                }*/
                 // If there is an argsCallback, use the return value to send to the run(args) function.
-                var args = "[1,2,3,4,5]";
+                var args = "";
                 if (this.argsCallback) {
                     this.interpreter.global.__args = this.argsCallback();
                     args = "__args";
                 }
                 // Run the support function run(args?).
-                this.interpreter.evaluateInContext("run("+args+")", "_support_run", 0, x, this.returnFn.bind(this), this.errorFn.bind(this), prev);
+                this.interpreter.evaluateInContext("run("+args+")", "_support_run", 0, x, this.returnFn.bind(this, x), this.errorFn.bind(this, x), prev);
             }.bind(this);
             
             this.interpreter.evaluateInContext(source, "source", 1, x2,
@@ -243,7 +252,7 @@ Debugger.prototype = {
         }
         else {
             // Run the code.
-            this.interpreter.evaluateInContext(source, "source", 0, x, this.returnFn.bind(this), this.errorFn.bind(this), prev);
+            this.interpreter.evaluateInContext(source, "source", 0, x, this.returnFn.bind(this, x), this.errorFn.bind(this, x), prev);
         }
     },
     

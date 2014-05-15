@@ -9,14 +9,17 @@ var supportDocs = [
 var selectedDoc = 0;
 
 window.onload = function() {
-    var mySource = CodeMirror(document.getElementById("debugger"),
-        {value:_code, lineNumbers:true, mode:"javascript"});
+    var mySource = CodeMirror(document.getElementById("debugger"), {
+      value:_code,
+      lineNumbers:true,
+      mode:"javascript",
+      indentUnit:4});
         
     mySupport = CodeMirror(document.getElementById("support"), {
       value: "",
+      lineNumbers:true,
       mode: "javascript",
-      lineNumbers:true
-    });
+      indentUnit:4});
     mySupport.on('changes', supportUpdate);
     
     tailspinDebugger = new Debugger(mySource);

@@ -7,14 +7,12 @@
 
 body, html {
   height: 100%;
-  overflow2: hidden;
-  margin2: 0px;
-  padding2: 0px;
+  overflow: hidden;
 }
 
 #support {
   box-sizing: border-box;
-  height: 300px;
+  height: calc(100% - 400px)
 }
 
 #support .CodeMirror {
@@ -31,6 +29,11 @@ body, html {
 
 #support {
     margin-top: 20px;
+}
+
+#support .CodeMirror {
+    height: calc(100% - 24px);
+    box-sizing: border-box;
 }
 
 

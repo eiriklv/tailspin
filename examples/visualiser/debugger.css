@@ -122,6 +122,8 @@ body, html {
 
 #time-slider {
     width: 100%;
+    height: 24px;
+    margin: 0px;
 }
 
 #speed-span {
@@ -139,39 +141,3 @@ body, html {
     width: 16px;
     height: 16px;
 }
-/*
-input[type="range"]{
-    -webkit-appearance: none;
-    -moz-apperance: none;
-    width: 200px;
-    height: 6px;
-    background: #024069;
-    border-radius: 5px;
-    border: 1px solid #777;
-    background-image: -webkit-gradient(
-        linear,
-        left top,
-        right top,
-        color-stop(0.2, #3467E5),
-        color-stop(0.2, #999)
-    );
-}
-
-/*var inputs = document.getElementsByTagName('input');
-inputs = Array.splice(inputs, 0);
-inputs.forEach(function (item) {
-    if (item.type === 'range') {
-        item.onchange = function () {
-            value = (item.value - item.min)/(item.max - item.min)
-            item.style.backgroundImage = [
-                '-webkit-gradient(',
-                  'linear, ',
-                  'left top, ',
-                  'right top, ',
-                  'color-stop(' + value + ', #3467E5), ',
-                  'color-stop(' + value + ', #999)',
-                ')'
-            ].join('');
-        };
-    }
-});*/

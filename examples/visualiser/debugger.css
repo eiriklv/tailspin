@@ -18,13 +18,16 @@ body, html {
 #support .CodeMirror {
     margin-top: 0px;
     z-index: 2;
-    font-size: 9pt;
+    font-size: 8pt;
+    font-family: Menlo, monospace;
     width: 100%;
     height: 100%;
 }
 
 #debugger .CodeMirror {
     height: calc(100% - 48px);
+    font-size: 8pt;
+    font-family: Menlo, monospace;
 }
 
 #support {

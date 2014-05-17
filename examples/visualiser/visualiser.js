@@ -1,5 +1,5 @@
 var tailspinDebugger;
-var mySupport;
+var mySource, mySupport;
 
 var supportDocs = [
     {name:"Support", src:_support, mode:"javascript"},
@@ -9,12 +9,13 @@ var supportDocs = [
 var selectedDoc = 0;
 
 window.onload = function() {
-    var mySource = CodeMirror(document.getElementById("debugger"), {
+    mySource = CodeMirror(document.getElementById("debugger"), {
       value:_code,
       lineNumbers:true,
       mode:"javascript",
       indentUnit:4});
-        
+    mySource.on('changes', sourceUpdate);
+    
     mySupport = CodeMirror(document.getElementById("support"), {
       value: "",
       lineNumbers:true,
@@ -26,6 +27,9 @@ window.onload = function() {
     tailspinDebugger.log = console.log;
     
     // Load saved code.
+    if (typeof localStorage["Source"] === "string") {
+        mySource.getDoc().setValue(localStorage["Source"]);
+    }
     if (typeof localStorage["support_Support"] === "string") {
         supportDocs[0].src = localStorage["support_Support"];
     }
@@ -76,8 +80,10 @@ function updateVisualisation() {
     v.contentDocument.close();
 }
 
-function supportUpdate(cMirror) {
-    var code = cMirror.getValue();
+var updateSupportTimeout, updateSourceTimeout;
+
+function supportUpdateSave() {
+    var code = mySupport.getValue();
     supportDocs[selectedDoc].src = code;
     localStorage["support_"+supportDocs[selectedDoc].name] = code;
     
@@ -88,9 +94,32 @@ function supportUpdate(cMirror) {
     if (selectedDoc === 2) {
         updateVisualisation();
     }
+    updateSupportTimeout = null;
+}
+
+function supportUpdate(cMirror) {
+    clearTimeout(updateSupportTimeout);
+    updateSupportTimeout = setTimeout(supportUpdateSave, 3*1000);
+}
+
+function sourceUpdateSave() {
+    var code = mySource.getValue();
+    localStorage["Source"] = code;
+    tailspinDebugger.reset();
+    updateSourceTimeout = null;
+}
+
+function sourceUpdate(cMirror) {
+    clearTimeout(updateSourceTimeout);
+    updateSourceTimeout = setTimeout(sourceUpdateSave, 3*1000);
 }
 
 function selectTab(docIndex) {
+    if (updateSupportTimeout) {
+        clearTimeout(updateSupportTimeout);
+        supportUpdateSave();
+    }
+    
     selectedDoc = docIndex;
     for (var i=0, c=supportDocs.length; i<c; i++) {
         supportDocs[i].element.setAttribute("class", i===selectedDoc?"selected":"");

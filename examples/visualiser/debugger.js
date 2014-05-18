@@ -25,6 +25,9 @@ function Debugger(source) {
 Debugger.prototype = {
     reset: function() {
         // Create a new interpreter.
+        if (this.interpreter) {
+            this.interpreter.cleanup();
+        }
         this.interpreter = new Tailspin.Interpreter();
         
         // Add a single global 'console' that has a log function.

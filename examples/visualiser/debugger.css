@@ -1,0 +1,148 @@
+#visualiser {
+    width: 348px;
+    height: 348px;
+    display: inline-block;
+    vertical-align: top;
+}
+
+body, html {
+  height: 100%;
+  overflow: hidden;
+}
+
+#support {
+  box-sizing: border-box;
+  height: calc(100% - 400px)
+}
+
+#support .CodeMirror {
+    margin-top: 0px;
+    z-index: 2;
+    font-size: 8pt;
+    font-family: Menlo, monospace;
+    width: 100%;
+    height: 100%;
+}
+
+#debugger .CodeMirror {
+    height: calc(100% - 48px);
+    font-size: 8pt;
+    font-family: Menlo, monospace;
+}
+
+#support {
+    margin-top: 20px;
+}
+
+#support .CodeMirror {
+    height: calc(100% - 24px);
+    box-sizing: border-box;
+}
+
+
+#source {
+    width: 200px;
+}
+
+#status-bar {
+    height: 24px;
+    background: #cacaca; /* Old browsers */
+    background: linear-gradient(to bottom, #cacaca 0%,#f4f4f4 5%,#f4f4f4 50%,#e6e6e6 51%,#e6e6e6 95%,#b8b8b8 100%);
+}
+
+#debugger {
+    border: 1px solid #ACACAC;
+    border-top: none;
+    box-sizing: border-box;
+    width: 600px;
+    height: 348px;
+    display: inline-block;
+    overflow: hidden;
+}
+
+#debugger .CodeMirror {
+    border: none;
+    margin-top: 0px;
+}
+
+
+#status-bar button {
+    width: 32px;
+    height: 24px;
+    background-position: center;
+    background-size:16px 16px;
+    border: 1px solid #ACACAC;
+    margin-left: -1px;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,0.7);
+    outline: none;
+}
+
+#status-bar button:active:enabled {
+    background-color: rgba(0,0,0,0.3);
+    /* Darker border */
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,0.1);
+    border: 1px solid #888;
+}
+
+#status-bar button:disabled {
+    opacity: 0.5;
+}
+
+
+#animate-button {
+    background: url(../images/debuggerAnimate.svg) no-repeat;
+}
+
+#animate-button.pause {
+    background: url(../images/debuggerAnimatePause.svg) no-repeat;
+    background-position: center;
+    background-size:16px 16px;
+}
+
+#step-back-button {
+    background: url(../images/debuggerStepBack.svg) no-repeat;
+}
+
+#step-forward-button {
+    background: url(../images/debuggerStepForward.svg) no-repeat;
+}
+
+#step-over-button {
+    background: url(../images/debuggerStepOver.svg) no-repeat;
+}
+
+#step-out-button {
+    background: url(../images/debuggerStepOut.svg) no-repeat;
+}
+
+#timebar {
+    background-color: #eee;
+    height: 24px;
+    border-bottom: 1px solid #ACACAC;
+}
+
+#timebar img {
+    padding: 4px;
+}
+
+#time-slider {
+    width: calc(100% - 30px);
+    height: 24px;
+    margin: 0px;
+}
+
+#speed-span {
+    float: right;
+    height: 24px;
+}
+
+#speed-span input {
+    height: 24px;
+    margin: 0px;
+}
+
+#speed-span img {
+    padding: 4px;
+    width: 16px;
+    height: 16px;
+}

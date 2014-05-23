@@ -1368,6 +1368,7 @@ function createFunctionExecutionContext(strict) {
 // but properties added to globalBase will persist.
 exports.global = global;
 exports.globalBase = sandboxExports.globalBase;
+exports.cleanup = sandboxExports.cleanup;
 exports.translate = sandboxExports.translate;
 exports.resetEnvironment = sandboxExports.resetEnvironment;
 exports.evaluate = evaluate;

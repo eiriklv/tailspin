@@ -1,0 +1,37 @@
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <title>Tailspin Example - Debugger</title>
+    
+    <script src="../lib/codemirror-compressed.js"></script>
+    <link rel="stylesheet" href="../lib/codemirror.css">
+    
+    <script type="text/javascript" src="../../tailspin.js"></script>
+    <script src="debugger.js"></script>
+    
+    <link rel="stylesheet" type="text/css" href="../examples.css">
+    <link rel="stylesheet" href="debugger.css">
+</head>
+
+<body>
+
+<div id="debugger">
+<div id="status-bar"><button id="animate-button" class="pause" onclick="tailspinDebugger.animate();"></button><button id="step-back-button" onclick="tailspinDebugger.back();"></button><button id="step-forward-button" onclick="tailspinDebugger.forward();"></button><button id="step-over-button" onclick="tailspinDebugger.stepOver();"></button><button id="step-out-button" onclick="tailspinDebugger.stepOut();"></button>
+<span id="speed-span"><img src="../images/slow.svg" width=16 height=16><input type="range" id="speed-slider"></input><img src="../images/fast.svg" width=16 height=16></span>
+</div>
+<div id="timebar"><input type="range" id="time-slider"></input></div>
+<textarea id="source">function gcd(a, b) {
+    console.log(a+", "+b);
+    if (b === 0) {
+        return a;
+    }
+    return gcd(b, a % b);
+}
+
+gcd(12, 90);</textarea>
+</div>
+
+<textarea id="console"></textarea>
+
+</body>
+</html>

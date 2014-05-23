@@ -72,6 +72,7 @@ apply = function(f, t, a) {\n\
 
 // When we are in a position to create an iframe, use an iframe to sandbox the interpreter.
 // e.g. not running in a browser, or in a web worker
+var iframe = null;
 if (typeof document === "object") {
     var iframe = document.createElement("iframe");
     iframe.style.display = "none";
@@ -95,6 +96,12 @@ else {
     
     nativeBase = (new Function("return this"))();
     sandbox = nativeBase;
+}
+
+function cleanup() {
+    if (iframe) {
+        iframe.parentNode.removeChild(iframe);
+    }
 }
 
 // The underlying global object for narcissus.
@@ -926,6 +933,7 @@ exports.globalBase = globalBase;
 exports.functionInternals = functionInternals;
 exports.translate = translate;
 exports.resetEnvironment = resetEnvironment;
+exports.cleanup = cleanup;
 
 exports.sandbox = sandbox;
 exports.sandboxError = sandboxError;

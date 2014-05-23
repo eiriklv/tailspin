@@ -2611,6 +2611,7 @@ var Tailspin = new function() {
     var nativeBase;
     var sandbox;
     var sandboxFns = 'nativeBase = (new Function("return this"))();\n\n// Creates a function in the sandbox from the string fnStr.\n// fnStr will reference continuationMarker, fint and x.\nnewFnFunction = function(continuationMarker, fint, x, fnStr) {\n    var newFn;\n    if (fint.node.body.strict) {\n        (function() {\n            "use strict"\n            newFn = eval(fnStr);\n        })();\n    }\n    else {\n        newFn = eval(fnStr);\n    }\n    return newFn;\n};\n\n// Creates an empty arguments object.\nmakeArguments = function() {\n    return (function(){return arguments})();\n};\n\n// Apply functions used in order to run functions in the sandbox.\napplyNew = function(f, a) {\n    return new (f.bind.apply(f, [,].concat(Array.prototype.slice.call(a))))();\n};\n\napply = function(f, t, a) {\n    return f.apply(t, a);\n};';
+    var iframe = null;
     if (typeof document === "object") {
       var iframe = document.createElement("iframe");
       iframe.style.display = "none";
@@ -2623,6 +2624,11 @@ var Tailspin = new function() {
       nonstrictEval(sandboxFns);
       nativeBase = new Function("return this")();
       sandbox = nativeBase;
+    }
+    function cleanup() {
+      if (iframe) {
+        iframe.parentNode.removeChild(iframe);
+      }
     }
     var globalBase = {
       NaN: sandbox.NaN,
@@ -3287,6 +3293,7 @@ var Tailspin = new function() {
     exports.functionInternals = functionInternals;
     exports.translate = translate;
     exports.resetEnvironment = resetEnvironment;
+    exports.cleanup = cleanup;
     exports.sandbox = sandbox;
     exports.sandboxError = sandboxError;
     exports.sandboxArray = sandboxArray;
@@ -4368,6 +4375,7 @@ var Tailspin = new function() {
     }
     exports.global = global;
     exports.globalBase = sandboxExports.globalBase;
+    exports.cleanup = sandboxExports.cleanup;
     exports.translate = sandboxExports.translate;
     exports.resetEnvironment = sandboxExports.resetEnvironment;
     exports.evaluate = evaluate;

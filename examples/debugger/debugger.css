@@ -40,25 +40,25 @@
 
 
 #run-button {
-    background: url(images/debuggerRun.svg) no-repeat;
+    background: url(../images/debuggerRun.svg) no-repeat;
 }
 
 #stop-button {
-    background: url(images/debuggerStop.svg) no-repeat;
+    background: url(../images/debuggerStop.svg) no-repeat;
 }
 
 #pause-button {
-    background: url(images/debuggerPause.svg) no-repeat;
+    background: url(../images/debuggerPause.svg) no-repeat;
 }
 
 #step-over-button {
-    background: url(images/debuggerStepOver.svg) no-repeat;
+    background: url(../images/debuggerStepOver.svg) no-repeat;
 }
 
 #step-into-button {
-    background: url(images/debuggerStepInto.svg) no-repeat;
+    background: url(../images/debuggerStepInto.svg) no-repeat;
 }
 
 #step-out-button {
-    background: url(images/debuggerStepOut.svg) no-repeat;
+    background: url(../images/debuggerStepOut.svg) no-repeat;
 }

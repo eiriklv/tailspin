@@ -54,14 +54,12 @@ Debugger.prototype = {
             this.timeSlider.disabled = false;
             this.timeSlider.max = n;
         }.bind(this);
-        /*
-        this.countSteps([
-              {source:this.supportCode, url:"_support"},
-              {source:this.source.getValue(), url:"my-code", count:true, runCount:true}
-            ]
-            , setSteps);*/
         
         var x = this.interpreter.createExecutionContext();
+        if (this.updateCallback) {
+            this.updateCallback(null, self.currentExecutionContext, false, 0);
+        }
+        
         if (x.lookupInScope("run")) {
             var args = "[1,2,3,4,5]";
             if (this.argsCallback) {
@@ -94,6 +92,7 @@ Debugger.prototype = {
             }*/
             
             // Run synchronously for now.
+            var self = this;
             var x = this.interpreter.createExecutionContext();
             this.interpreter.evaluateInContext(this.supportCode, "_supportCode", 1, x,
                 function(r) {
@@ -101,8 +100,8 @@ Debugger.prototype = {
                         DebuggerAgent.reset();
                     }
                     else {
-                        if (DebuggerAgent.updateCallback) {
-                            DebuggerAgent.updateCallback(null, DebuggerAgent.currentExecutionContext, false, 0);
+                        if (self.updateCallback) {
+                            self.updateCallback(null, self.currentExecutionContext, false, 0);
                         }
                     }*/
                 },

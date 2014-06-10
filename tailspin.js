@@ -124,7 +124,7 @@ var Tailspin = new function() {
       "public": true,
       "static": true,
       use: true,
-      yield: true
+      "yield": true
     },
     isStatementStartCode: {
       "62": true,
@@ -424,7 +424,7 @@ var Tailspin = new function() {
     }
     function isValidIdentifierChar(ch, first) {
       if (ch <= "") {
-        if (ch >= "a" && ch <= "z" || ch >= "A" && ch <= "Z" || ch === "$" || ch === "_" || !first && ch >= "0" && ch <= "9") {
+        if (ch >= "a" && ch <= "z" || ch >= "A" && ch <= "Z" || ch === "$" || ch === "_" || !first && (ch >= "0" && ch <= "9")) {
           return true;
         }
         return false;
@@ -3125,7 +3125,22 @@ var Tailspin = new function() {
           return "{get:function(){return " + name + ";}, set:function(v){return " + name + " = v;}, configurable:false}";
         }).join(", ");
         var fnStr = "(function(" + args + "){\n" + "return {args:arguments, accessors:[" + accessors + "]};\n            })";
-        var r = sandbox.eval(fnStr).apply(null, a);
+        var r;
+        try {
+          r = sandbox.eval(fnStr).apply(null, a);
+        } catch (e) {
+          if (e instanceof TypeError) {
+            r = sandbox.eval(fnStr);
+            var flattened_args = [ "r(" ];
+            for (var i = 0; i < a.length - 1; i++) {
+              flattened_args.push("a[" + i + "], ");
+            }
+            flattened_args.push(");");
+            r = eval(flattened_args.join(""));
+          } else {
+            throw e;
+          }
+        }
         var paramNames = {};
         for (var i = f.params.length - 1; i >= 0; i--) {
           if (!Object.prototype.hasOwnProperty.call(this, f.params[i])) {
@@ -3197,6 +3212,7 @@ var Tailspin = new function() {
           node: x.currentNode,
           executionContext: x
         });
+        f._caller = x.functionInstance;
         x2.scope = {
           object: new Activation(n, a, f),
           parent: this.scope
@@ -3406,7 +3422,11 @@ var Tailspin = new function() {
           return;
         } else if (typeof ref.base === "function" && ref.propertyName === "caller") {
           ref.base.caller;
-          next(undefined, prev, ref);
+          if (x.strict) {
+            next(undefined, prev, ref);
+          } else {
+            next(ref.base._caller, prev, ref);
+          }
         } else {
           var base = toObject(ref.base);
           var propDesc = Tailspin.Utility.getPropertyDescriptor(base, ref.propertyName);

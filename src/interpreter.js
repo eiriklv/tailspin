@@ -159,7 +159,12 @@ function getValue(x, ref, next, thrw, prev) {
         // Workaround for not defining 'caller' on 'arguments.callee.caller'.
         else if (typeof ref.base === "function" && ref.propertyName === "caller") {
             ref.base.caller; // Access it just to make sure we can.
-            next(undefined, prev, ref); // Then return 'undefined' as the value.
+            if (x.strict) {
+                next(undefined, prev, ref); // Then return 'undefined' as the value.
+            } else {
+                // use it's _caller property instead. -- btj
+                next(ref.base._caller, prev, ref); // We're not strict, so hand if off! -- btj 
+            }
         }
         else {
             // Access property descriptor and get the value for the reference.

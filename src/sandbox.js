@@ -736,7 +736,7 @@ var continuationMarker = {};
 var calleeCallerPoisonFn = sandbox.eval("'use strict'; Object.getOwnPropertyDescriptor(function() {}, 'caller').get");
 
 function Activation(f, a, callee) {
-    if (f) {        
+    if (f) {
         // Ugly method of creating an arguments object with the correct properties.
         // Allow parameter named 'arguments' by changing the name of the parameter.
         var safeParams = f.params.map(function(name) {
@@ -834,14 +834,16 @@ var FIp = FunctionInternals.prototype = {
         }
         
         x2.functionInstance = this;
+        x2.function = f;
         x2.control = x.control;
         x2.asynchronous = x.asynchronous;
         // copy the stack and add the current node onto it
         x2.stack = x.stack.slice();
         x2.stack.push({node:x.currentNode, executionContext:x});
-        // Hide the caller variable inside the callee (we can't overwrite arguments.callee on some browsers)
-        f._caller = x.functionInstance; 
-        x2.scope = {object: new Activation(n, a, f), parent: this.scope};
+        if (!x.strict && !x2.strict) {
+            // Hide the caller variable inside the callee (we can't overwrite arguments.callee on some browsers)
+            f._caller = x.function;
+        }
         
         if (next) {
             // next continuation enforces undefined value

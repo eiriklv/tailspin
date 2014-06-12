@@ -3205,6 +3205,7 @@ var Tailspin = new function() {
           x2.thisObject = toObject(t) || global;
         }
         x2.functionInstance = this;
+        x2.function = f;
         x2.control = x.control;
         x2.asynchronous = x.asynchronous;
         x2.stack = x.stack.slice();
@@ -3212,11 +3213,9 @@ var Tailspin = new function() {
           node: x.currentNode,
           executionContext: x
         });
-        f._caller = x.functionInstance;
-        x2.scope = {
-          object: new Activation(n, a, f),
-          parent: this.scope
-        };
+        if (!x.strict && !x2.strict) {
+          f._caller = x.function;
+        }
         if (next) {
           x2.execute(n.body, function(result, prev) {
             next(undefined, prev);

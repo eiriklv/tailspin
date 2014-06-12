@@ -8,7 +8,7 @@ all: $(GENERATED_FILES)
 
 tailspin.js:
 	@rm -f $@
-	bin/concat.js | node_modules/.bin/uglifyjs - -b indent-level=2 -o $@
+	bin/concat.js | uglifyjs - -b indent-level=2 -o $@
 	@chmod a-w $@
 
 tailspin.min.js:

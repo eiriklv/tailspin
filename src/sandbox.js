@@ -751,8 +751,28 @@ function Activation(f, a, callee) {
         var fnStr = "(function("+args+"){\n"+
                 "return {args:arguments, accessors:["+accessors+"]};\n\
             })";
-        
-        var r = sandbox.eval(fnStr).apply(null, a);
+        // Some browsers (cough cough PhantomJS cough cough) are too old.
+        // They do not support apply(null, ARRAY_LIKE_OBJ)
+        // soo....
+        // We will abuse eval to force it to work while preserving the fast
+        // path functionality for others.
+
+        var r;
+        try {
+          r = sandbox.eval(fnStr).apply(null, a);
+        } catch (e) {
+          if (e instanceof TypeError) {
+            r = sandbox.eval(fnStr);
+            var flattened_args = ["r("];
+            for (var i = 0; i < a.length-1; i++) {
+              flattened_args.push('a[' + i + '], ')
+            }
+            flattened_args.push(');');
+            r = eval(flattened_args.join(''));
+          } else {
+            throw e;
+          }
+        }
         var paramNames = {};
         
         // Set all parameters on Activation.
@@ -819,7 +839,8 @@ var FIp = FunctionInternals.prototype = {
         // copy the stack and add the current node onto it
         x2.stack = x.stack.slice();
         x2.stack.push({node:x.currentNode, executionContext:x});
-        
+        // Hide the caller variable inside the callee (we can't overwrite arguments.callee on some browsers)
+        f._caller = x.functionInstance; 
         x2.scope = {object: new Activation(n, a, f), parent: this.scope};
         
         if (next) {

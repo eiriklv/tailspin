@@ -840,6 +840,7 @@ var FIp = FunctionInternals.prototype = {
         // copy the stack and add the current node onto it
         x2.stack = x.stack.slice();
         x2.stack.push({node:x.currentNode, executionContext:x});
+        x2.scope = {object: new Activation(n, a, f), parent: this.scope};
         if (!x.strict && !x2.strict) {
             // Hide the caller variable inside the callee (we can't overwrite arguments.callee on some browsers)
             f._caller = x.function;

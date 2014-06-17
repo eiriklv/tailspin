@@ -3213,6 +3213,10 @@ var Tailspin = new function() {
           node: x.currentNode,
           executionContext: x
         });
+        x2.scope = {
+          object: new Activation(n, a, f),
+          parent: this.scope
+        };
         if (!x.strict && !x2.strict) {
           f._caller = x.function;
         }

@@ -99,12 +99,28 @@ body, html {
     background-size:16px 16px;
 }
 
+#run-button {
+    background: url(../images/debuggerRun.svg) no-repeat;
+}
+
+#stop-button {
+    background: url(../images/debuggerStop.svg) no-repeat;
+}
+
+#pause-button {
+    background: url(../images/debuggerPause.svg) no-repeat;
+}
+
 #step-back-button {
     background: url(../images/debuggerStepBack.svg) no-repeat;
 }
 
 #step-forward-button {
     background: url(../images/debuggerStepForward.svg) no-repeat;
+}
+
+#step-into-button {
+    background: url(../images/debuggerStepInto.svg) no-repeat;
 }
 
 #step-over-button {

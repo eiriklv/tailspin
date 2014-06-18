@@ -24,6 +24,7 @@ window.onload = function() {
     mySupport.on('changes', supportUpdate);
     
     tailspinDebugger = new Debugger(mySource);
+    tailspinDebugger.callRunFunctionOnRunning = true;
     tailspinDebugger.log = console.log;
     
     // Load saved code.

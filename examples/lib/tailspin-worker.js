@@ -1,4 +1,4 @@
-importScripts('../../tailspin.js');
+importScripts('tailspin.js');
 
 var interpreter = new Tailspin.Interpreter();
 var x;

@@ -1,8 +1,8 @@
-// can set 'supportCode', 'log'
+// can set 'Debugger.log', 'callRunFunctionOnRunning'
 
-function Debugger(source) {
+function Debugger(source, supportCode) {
     this.source = source;
-    this.supportCode = "";
+    this.supportCode = typeof supportCode === "string"? supportCode : "";
     
     this.animateButton = document.getElementById("animate-button");
     this.stepBackButton = document.getElementById("step-back-button");
@@ -10,14 +10,21 @@ function Debugger(source) {
     this.stepOverButton = document.getElementById("step-over-button");
     this.stepOutButton = document.getElementById("step-out-button");
     
+    this.runButton = document.getElementById("run-button");
+    this.stopButton = document.getElementById("stop-button");
+    this.pauseButton = document.getElementById("pause-button");
+    this.stepIntoButton = document.getElementById("step-into-button");
+    
     this.speedSlider = document.getElementById("speed-slider");
     
     this.timeSlider = document.getElementById("time-slider");
-    var jump = function(e) {
-        this.jumpToStep(e.target.valueAsNumber);
-    }.bind(this);
-    this.timeSlider.oninput = jump;
-    this.timeSlider.onchange = jump;
+    if (this.timeSlider) {
+        var jump = function(e) {
+            this.jumpToStep(e.target.valueAsNumber);
+        }.bind(this);
+        this.timeSlider.oninput = jump;
+        this.timeSlider.onchange = jump;
+    }
     
     this.reset();
 }
@@ -46,39 +53,42 @@ Debugger.prototype = {
         
         this.stepCount = -1;
         
-        this.timeSlider.value = -1;
-        this.timeSlider.min = -1;
-        this.timeSlider.disabled = true;
+        if (this.timeSlider) {
+            this.timeSlider.min = -1;
+            this.timeSlider.value = -1;
+            this.timeSlider.disabled = true;
         
-        var setSteps = function(n) {
-            this.timeSlider.disabled = false;
-            this.timeSlider.max = n;
-        }.bind(this);
-        
-        var x = this.interpreter.createExecutionContext();
-        if (this.updateCallback) {
-            this.updateCallback(null, self.currentExecutionContext, false, 0);
-        }
-        
-        if (x.lookupInScope("run")) {
-            var args = "[1,2,3,4,5]";
-            if (this.argsCallback) {
-                args = JSON.stringify(this.argsCallback());
+            var setSteps = function(n) {
+                this.timeSlider.disabled = false;
+                this.timeSlider.max = n;
+            }.bind(this);
+            
+            var x = this.interpreter.createExecutionContext();
+            if (this.updateCallback) {
+                this.updateCallback(null, self.currentExecutionContext, false, 0);
             }
             
-            this.countSteps([
-                  {source:this.supportCode, url:"_support"},
-                  {source:this.source.getValue(), url:"my-code", count:true},
-                  {source:"run("+args+")", url:"_run", runCount:true}
-                ]
-                , setSteps);
-        }
-        else {
-            this.countSteps([
-                  {source:this.supportCode, url:"_support"},
-                  {source:this.source.getValue(), url:"my-code", count:true, runCount:true}
-                ]
-                , setSteps);
+            if (this.callRunFunctionOnRunning && x.lookupInScope("run")) {
+                var args = "";
+                if (this.argsCallback) {
+                    args = JSON.stringify(this.argsCallback());
+                }
+                
+                this.countSteps([
+                      {source:this.supportCode, url:"_support"},
+                      {source:this.source.getValue(), url:"my-code", count:true},
+                      {source:"run("+args+")", url:"_run", runCount:true}
+                    ]
+                    , setSteps);
+            }
+            else {
+                this.countSteps([
+                      {source:this.supportCode, url:"_support"},
+                      {source:"console={log:function(){}}", url:"_support2"},
+                      {source:this.source.getValue(), url:"my-code", count:true, runCount:true}
+                    ]
+                    , setSteps);
+            }
         }
         
         this.updateButtons();
@@ -124,21 +134,47 @@ Debugger.prototype = {
     
     updateButtons: function() {
         var running = !(this.state === "paused" || this.state === "stopped" || this.state === "animate");
+        var isPaused = (this.state === "paused" || this.state === "stopped");
         
         var hasPrev = typeof this.executePrev === "function";
         var hasNext = typeof this.executeNext === "function" || this.stepCount === -1;
         
-        this.stepBackButton.disabled = !hasPrev || running;
-        this.stepForwardButton.disabled = !hasNext || running; // Can start by stepping over or into.
-        this.animateButton.disabled = !hasNext || running;
-        this.stepOverButton.disabled = !hasNext || running;
-        this.stepOutButton.disabled = !hasNext || running;
-        
-        if (this.state === "animate") {
-            this.animateButton.setAttribute("class", "pause");
+        if (this.stepBackButton) {
+            this.stepBackButton.disabled = !hasPrev || running;
+        }
+        if (this.stepForwardButton) {
+            this.stepForwardButton.disabled = !hasNext || running; // Can start by stepping over or into.
+        }
+        if (this.timeSlider) {
+            this.stepOverButton.disabled = !hasNext || running;
+            this.stepOutButton.disabled = !hasNext || running;
         }
         else {
-            this.animateButton.removeAttribute("class");
+            this.stepOverButton.disabled = !isPaused;
+            this.stepOutButton.disabled = this.state !== "paused";
+        }
+        
+        if (this.animateButton) {
+            this.animateButton.disabled = !hasNext || running;
+            if (this.state === "animate") {
+                this.animateButton.setAttribute("class", "pause");
+            }
+            else {
+                this.animateButton.removeAttribute("class");
+            }
+        }
+        
+        if (this.runButton) {
+            this.runButton.disabled = !isPaused;
+        }
+        if (this.stopButton) {
+            this.stopButton.disabled = this.state === "stopped";
+        }
+        if (this.pauseButton) {
+            this.pauseButton.disabled = isPaused;
+        }
+        if (this.stepIntoButton) {
+            this.stepIntoButton.disabled = !isPaused; // Can start by stepping over or into.
         }
     },
     
@@ -150,7 +186,7 @@ Debugger.prototype = {
             this.countWorker.terminate();
         }
         
-        this.countWorker = new Worker("tailspin-worker.js");
+        this.countWorker = new Worker("lib/tailspin-worker.js");
         
         // Run for a maximum of 10s.
         var timer = setTimeout(function () {
@@ -186,7 +222,9 @@ Debugger.prototype = {
         this.executeNext = null;
         this.executePrev = prev;
         this.highlightLine(-1);
-        this.timeSlider.value = this.stepCount;
+        if (this.timeSlider) {
+            this.timeSlider.value = this.stepCount;
+        }
         
         this.updateButtons();
     },
@@ -218,7 +256,9 @@ Debugger.prototype = {
             self.state = "stopped";
             self.stepCount = -1;
             self.highlightLine(-1);
-            self.timeSlider.value = self.stepCount;
+            if (self.timeSlider) {
+                self.timeSlider.value = self.stepCount;
+            }
             
             delete self.executePrev;
             self.executeNext = null;
@@ -232,7 +272,7 @@ Debugger.prototype = {
         
         var source = this.source.getValue();
         
-        if (x.lookupInScope("run")) {
+        if (this.callRunFunctionOnRunning && x.lookupInScope("run")) {
             var x2 = this.interpreter.createExecutionContext();
             // Run the source silently first then run the run() function.
             var runFn = function() {
@@ -319,6 +359,9 @@ Debugger.prototype = {
     pause: function() {
         this.state = "paused";
     },
+    stop: function() {
+        this.end();
+    },
     
     
     resumeAnimating: function() {
@@ -371,7 +414,9 @@ Debugger.prototype = {
         
         // Highlight the new line.
         this.highlightLine(n.lineno-1);
-        this.timeSlider.value = this.stepCount;
+        if (this.timeSlider) {
+            this.timeSlider.value = this.stepCount;
+        }
         
         this.updateButtons();
     },
@@ -396,6 +441,7 @@ Debugger.prototype = {
             return; // EARLY RETURN
         }
         
+        var newPauseLine = this.pausedLine !== n.lineno || pausedStackDelta !== 0;
         this.currentLine = n.lineno;
         this.stackDepth = x.stack.length;
         
@@ -430,6 +476,11 @@ Debugger.prototype = {
             next(newPrev2);
         };
         
+        if (!newPauseLine) {
+            newNext(prev);
+            return;
+        }
+        
         switch (this.state) {
             case "jump":
                 // Stop if we hit the stepCount target.
@@ -447,15 +498,10 @@ Debugger.prototype = {
                 }
                 break;
             case "step-into":
-                if (this.pausedLine !== n.lineno || pausedStackDelta !== 0) {
-                    this.doPause(n, x, newNext, prev);
-                }
-                else {
-                    newNext(prev);
-                }
+                this.doPause(n, x, newNext, prev);
                 break;
             case "step-over":
-                if (this.pausedLine !== n.lineno || pausedStackDelta <= 0) {
+                if (pausedStackDelta <= 0) {
                     this.doPause(n, x, newNext, prev);
                 }
                 else {
@@ -463,7 +509,7 @@ Debugger.prototype = {
                 }
                 break;
             case "step-out":
-                if (this.pausedLine !== n.lineno || pausedStackDelta < 0) {
+                if (pausedStackDelta < 0) {
                     this.doPause(n, x, newNext, prev);
                 }
                 else {

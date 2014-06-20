@@ -21,11 +21,6 @@ pre > .error {
     color: #f00 !important;
 }
 
-.current-line {
-    background-color: rgb(171, 191, 254);
-    outline: 1px solid rgb(64, 115, 244);
-}
-
 canvas {
     border: 1px solid #999;
     width: 300px;

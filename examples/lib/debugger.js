@@ -476,27 +476,30 @@ Debugger.prototype = {
             next(newPrev2);
         };
         
+        // Handle jumping.
+        if (this.state === "jump") {
+            // Stop if we hit the stepCount target.
+            if (this.stepCount === this.jumpStepTarget) {
+                this.doPause(n, x, newNext, prev);
+            }
+            else if (this.stepCount > this.stepCountTarget) {
+                // Reverse execution.
+                prev();
+                return;
+            }
+            else {
+                // Otherwise continue execution.
+                newNext(prev);
+            }
+            return;
+        }
+        
         if (!newPauseLine) {
             newNext(prev);
             return;
         }
         
         switch (this.state) {
-            case "jump":
-                // Stop if we hit the stepCount target.
-                if (this.stepCount === this.jumpStepTarget) {
-                    this.doPause(n, x, newNext, prev);
-                }
-                else if (this.stepCount > this.stepCountTarget) {
-                    // Reverse execution.
-                    prev();
-                    return;
-                }
-                else {
-                    // Otherwise continue execution.
-                    newNext(prev);
-                }
-                break;
             case "step-into":
                 this.doPause(n, x, newNext, prev);
                 break;

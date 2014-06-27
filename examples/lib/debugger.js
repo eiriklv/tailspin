@@ -1,4 +1,4 @@
-// can set 'Debugger.log', 'callRunFunctionOnRunning'
+// can set 'Debugger.log', 'updateCallback', 'argsCallback(forCloning)', 'callRunFunctionOnRunning'
 
 function Debugger(source, supportCode) {
     this.source = source;
@@ -65,19 +65,20 @@ Debugger.prototype = {
             
             var x = this.interpreter.createExecutionContext();
             if (this.updateCallback) {
-                this.updateCallback(null, self.currentExecutionContext, false, 0);
+                this.updateCallback(null, x, false, 0);
             }
             
             if (this.callRunFunctionOnRunning && x.lookupInScope("run")) {
-                var args = "";
+                var args = null;
                 if (this.argsCallback) {
-                    args = JSON.stringify(this.argsCallback());
+                    args = this.argsCallback(true);
                 }
                 
                 this.countSteps([
+                      {setGlobal:"__args", value:args},
                       {source:this.supportCode, url:"_support"},
                       {source:this.source.getValue(), url:"my-code", count:true},
-                      {source:"run("+args+")", url:"_run", runCount:true}
+                      {source:"run(__args)", url:"_run", runCount:true}
                     ]
                     , setSteps);
             }
@@ -279,7 +280,7 @@ Debugger.prototype = {
                 // If there is an argsCallback, use the return value to send to the run(args) function.
                 var args = "";
                 if (this.argsCallback) {
-                    this.interpreter.global.__args = this.argsCallback();
+                    this.interpreter.global.__args = this.argsCallback(false);
                     args = "__args";
                 }
                 // Run the support function run(args?).
@@ -422,7 +423,7 @@ Debugger.prototype = {
     },
     
     control: function(n, x, next, prev) {
-        var myDebugger = this;
+        var self = this;
         
         if (n.filename !== "source") {
             next(prev);
@@ -451,22 +452,22 @@ Debugger.prototype = {
         // continuation so that we can pause the reverse execution.
         var newNext = function(prev) {
             // Hit a new line, increment the step count.
-            myDebugger.stepCount++;
+            self.stepCount++;
             
             // Create a newPrev that allows stopping.
             var newPrev2 = function() {
                 // step the stepCount backwards
-                if (myDebugger.stepCount-1 !== oldStep) {
+                if (self.stepCount-1 !== oldStep) {
                     throw "Step count mismatch in reverse execution.";
                 }
-                myDebugger.stepCount = oldStep;
+                self.stepCount = oldStep;
                 
-                myDebugger.currentLine = n.lineno;
-                myDebugger.stackDepth = x.stack.length;
+                self.currentLine = n.lineno;
+                self.stackDepth = x.stack.length;
                 
                 // Stop if we are stepping back or we hit the stepCount target.
-                if (myDebugger.state === "step-back" || (myDebugger.state === "jump" && myDebugger.stepCount === myDebugger.jumpStepTarget)) {
-                    myDebugger.doPause(n, x, newNext, prev);
+                if (self.state === "step-back" || (self.state === "jump" && self.stepCount === self.jumpStepTarget)) {
+                    self.doPause(n, x, newNext, prev);
                 }
                 else {
                     prev();
@@ -475,6 +476,19 @@ Debugger.prototype = {
             // Continue execution with the new prev continuation.
             next(newPrev2);
         };
+        
+        var continueFwd = function() {
+            var newPrev = prev;
+            // Update the visualisation mid-running.
+            if (self.updateCallback) {
+                // Call updateCallback with a duration of -1 to indicate any non-stateful update should be skipped.
+                var updatePrev = self.updateCallback(n, x, true, -1, newPrev);
+                if (updatePrev) {
+                    newPrev = updatePrev;
+                }
+            }
+            newNext(newPrev);
+        }
         
         // Handle jumping.
         if (this.state === "jump") {
@@ -489,13 +503,13 @@ Debugger.prototype = {
             }
             else {
                 // Otherwise continue execution.
-                newNext(prev);
+                continueFwd();
             }
             return;
         }
         
         if (!newPauseLine) {
-            newNext(prev);
+            continueFwd();
             return;
         }
         
@@ -508,7 +522,7 @@ Debugger.prototype = {
                     this.doPause(n, x, newNext, prev);
                 }
                 else {
-                    newNext(prev);
+                    continueFwd();
                 }
                 break;
             case "step-out":
@@ -516,7 +530,7 @@ Debugger.prototype = {
                     this.doPause(n, x, newNext, prev);
                 }
                 else {
-                    newNext(prev);
+                    continueFwd();
                 }
                 break;
             case "paused":
@@ -534,7 +548,7 @@ Debugger.prototype = {
                 
                 // If delay -1 -> -10: start skipping 1/11 up to 10/11 lines.
                 if (delay < 0 && this.stepCount%11 < -delay) {
-                    newNext(prev);
+                    continueFwd();
                 }
                 else {
                     var animateTimeout = setTimeout(this.resumeAnimating.bind(this), delay*10);

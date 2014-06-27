@@ -41,7 +41,7 @@ function setupCounting () {
         var currentStackDepth = -1;
         
         xCounter.control = function(n, x, next, prev) {
-            if (lineCount > 1000) {
+            if (lineCount > 50000) {
                 postMessage({type:"error", message:"count limit", lineCount:lineCount});
                 return;
             }
@@ -82,7 +82,14 @@ onmessage = function (e) {
 function runScript () {
     var script = scripts.shift();
     
-    var xContext = script.runCount? xCounter : x;
-    
-    interpreter.evaluateInContext(script.source, script.url, 1, xContext, returnFn, errorFn);
+    if (typeof script.source === "string") {
+        var xContext = script.runCount? xCounter : x;
+        
+        interpreter.evaluateInContext(script.source, script.url, 1, xContext, returnFn, errorFn);
+    }
+    else if (typeof script.setGlobal === "string") {
+        interpreter.global[script.setGlobal] = script.value;
+        // Run the next script.
+        runScript();
+    }
 }

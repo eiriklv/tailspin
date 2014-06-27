@@ -583,7 +583,7 @@ function translate(value, depth) {
         // Translate objects to a depth of 1.
         var obj = {};
         for (var k in value) {
-            if (hasDirectProperty(k)) {
+            if (hasDirectProperty(value, k)) {
                 obj[k] = translate(value[k], depth+1);
             }
         }

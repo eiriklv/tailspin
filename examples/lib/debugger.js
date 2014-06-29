@@ -75,6 +75,7 @@ Debugger.prototype = {
                 }
                 
                 this.countSteps([
+                      {randomSeed:this.interpreter.randomSeed},
                       {setGlobal:"__args", value:args},
                       {source:this.supportCode, url:"_support"},
                       {source:this.source.getValue(), url:"my-code", count:true},
@@ -84,6 +85,7 @@ Debugger.prototype = {
             }
             else {
                 this.countSteps([
+                      {randomSeed:this.interpreter.randomSeed},
                       {source:this.supportCode, url:"_support"},
                       {source:"console={log:function(){}}", url:"_support2"},
                       {source:this.source.getValue(), url:"my-code", count:true, runCount:true}

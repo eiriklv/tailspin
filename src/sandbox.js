@@ -452,17 +452,17 @@ functionInternals.set(sortFn, {
 });
 
 var maxRnd = 4294967296;
-var rndSeed = Math.random()*maxRnd;
+var randomSeed = Math.random()*maxRnd;
 
 functionInternals.set(sandbox.Math.random, {
     call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
-        var oldSeed = rndSeed;
+        var oldSeed = randomSeed;
         // Use a LCG.
-        rndSeed = (1664525*rndSeed+1013904223)%maxRnd;
-        var rndFloat = rndSeed/maxRnd;
+        randomSeed = (1664525*randomSeed+1013904223)%maxRnd;
+        var rndFloat = randomSeed/maxRnd;
         
         var newPrev = function() {
-            rndSeed = oldSeed;
+            randomSeed = oldSeed;
             prev();
         }
         
@@ -958,6 +958,8 @@ exports.functionInternals = functionInternals;
 exports.translate = translate;
 exports.resetEnvironment = resetEnvironment;
 exports.cleanup = cleanup;
+
+Object.defineProperty(exports, "randomSeed", {get:function() {return randomSeed;}, set:function(s) {randomSeed = s;}});
 
 exports.sandbox = sandbox;
 exports.sandboxError = sandboxError;

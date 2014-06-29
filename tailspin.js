@@ -124,7 +124,7 @@ var Tailspin = new function() {
       "public": true,
       "static": true,
       use: true,
-      "yield": true
+      yield: true
     },
     isStatementStartCode: {
       "62": true,
@@ -2922,14 +2922,14 @@ var Tailspin = new function() {
       construct: function(f, a, x, next, ret, cont, brk, thrw, prev) {}
     });
     var maxRnd = 4294967296;
-    var rndSeed = Math.random() * maxRnd;
+    var randomSeed = Math.random() * maxRnd;
     functionInternals.set(sandbox.Math.random, {
       call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
-        var oldSeed = rndSeed;
-        rndSeed = (1664525 * rndSeed + 1013904223) % maxRnd;
-        var rndFloat = rndSeed / maxRnd;
+        var oldSeed = randomSeed;
+        randomSeed = (1664525 * randomSeed + 1013904223) % maxRnd;
+        var rndFloat = randomSeed / maxRnd;
         var newPrev = function() {
-          rndSeed = oldSeed;
+          randomSeed = oldSeed;
           prev();
         };
         next(rndFloat, newPrev);
@@ -3313,6 +3313,14 @@ var Tailspin = new function() {
     exports.translate = translate;
     exports.resetEnvironment = resetEnvironment;
     exports.cleanup = cleanup;
+    Object.defineProperty(exports, "randomSeed", {
+      get: function() {
+        return randomSeed;
+      },
+      set: function(s) {
+        randomSeed = s;
+      }
+    });
     exports.sandbox = sandbox;
     exports.sandboxError = sandboxError;
     exports.sandboxArray = sandboxArray;
@@ -4401,6 +4409,14 @@ var Tailspin = new function() {
     exports.cleanup = sandboxExports.cleanup;
     exports.translate = sandboxExports.translate;
     exports.resetEnvironment = sandboxExports.resetEnvironment;
+    Object.defineProperty(exports, "randomSeed", {
+      get: function() {
+        return sandboxExports.randomSeed;
+      },
+      set: function(s) {
+        sandboxExports.randomSeed = s;
+      }
+    });
     exports.evaluate = evaluate;
     exports.evaluateInContext = evaluateInContext;
     exports.execute = execute;

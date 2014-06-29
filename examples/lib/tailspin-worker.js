@@ -80,15 +80,25 @@ onmessage = function (e) {
 }
 
 function runScript () {
+    if (scripts.length === 0) {
+        return;
+    }
+    
     var script = scripts.shift();
     
     if (typeof script.source === "string") {
         var xContext = script.runCount? xCounter : x;
-        
         interpreter.evaluateInContext(script.source, script.url, 1, xContext, returnFn, errorFn);
     }
     else if (typeof script.setGlobal === "string") {
         interpreter.global[script.setGlobal] = script.value;
+        runScript();
+    }
+    else if (typeof script.randomSeed === "number") {
+        interpreter.randomSeed = script.randomSeed;
+        runScript();
+    }
+    else {
         // Run the next script.
         runScript();
     }

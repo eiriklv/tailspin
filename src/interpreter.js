@@ -1376,6 +1376,7 @@ exports.globalBase = sandboxExports.globalBase;
 exports.cleanup = sandboxExports.cleanup;
 exports.translate = sandboxExports.translate;
 exports.resetEnvironment = sandboxExports.resetEnvironment;
+Object.defineProperty(exports, "randomSeed", {get:function() {return sandboxExports.randomSeed;}, set:function(s) {sandboxExports.randomSeed = s;}});
 exports.evaluate = evaluate;
 exports.evaluateInContext = evaluateInContext;
 exports.execute = execute;

@@ -5,6 +5,7 @@
     
     <link rel="stylesheet" type="text/css" href="lib/codemirror.css">
     <link rel="stylesheet" type="text/css" href="lib/debugger.css">
+    <link rel="stylesheet" type="text/css" href="examples.css">
     
     <script type="text/javascript" src="lib/codemirror-compressed.js"></script>
     <script type="text/javascript" src="lib/tailspin.js"></script>
@@ -30,13 +31,14 @@ a = a * sqr(b);",
             var myConsole = CodeMirror.fromTextArea(document.getElementById("console"),
                 {readOnly:true, mode:"text"});
 
-            var consoleLog = function(msg, logClass) {
+            var consoleLog = function(logClass, msg) {
                 var from = myConsole.posFromIndex(myConsole.getValue().length);
                 myConsole.replaceRange(msg+"\n", from);
                 myConsole.markText(from, CodeMirror.Pos(myConsole.lastLine()), {className:logClass});
             }
             
-            tailspinDebugger.log = consoleLog;
+            tailspinDebugger.result = consoleLog.bind(null, "log");
+            tailspinDebugger.error = consoleLog.bind(null, "error");
             
             // Save the code on changes.
             mySource.on('change', function(cMirror) {

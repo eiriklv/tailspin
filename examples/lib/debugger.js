@@ -1,4 +1,4 @@
-// can set 'Debugger.log', 'updateCallback', 'argsCallback(forCloning)', 'callRunFunctionOnRunning'
+// can set 'Debugger.result', 'Debugger.error', 'updateCallback', 'argsCallback(forCloning)', 'globalsCallback(forCloning)', 'callRunFunctionOnRunning'
 
 function Debugger(source, supportCode) {
     this.source = source;
@@ -40,7 +40,7 @@ Debugger.prototype = {
         // Add a single global 'console' that has a log function.
         var self = this;
         this.interpreter.global.console = {
-            log:function(msg) {self.log(msg, 'log');}
+            log:function(msg) {console.log(msg);}
         };
         
         this.runSupport();
@@ -205,11 +205,14 @@ Debugger.prototype = {
         this.countWorker.postMessage(scripts);
     },
     
-    log: function(output, outputClass) {
+    result: function(result) {
+        // For individual instances to implement.
+    },
+    error: function(error) {
         // For individual instances to implement.
     },
     
-    end: function(x, output, outputClass, prev) {
+    end: function(x, prev) {
         if (this.updateCallback) {
             var newPrev = this.updateCallback(null, x, false, 100, prev);
             if (newPrev) {
@@ -217,10 +220,6 @@ Debugger.prototype = {
             }
         }
         
-        
-        if (output) {
-            this.log(output, outputClass);
-        }
         this.state = "stopped";
         this.executeNext = null;
         this.executePrev = prev;
@@ -232,10 +231,12 @@ Debugger.prototype = {
         this.updateButtons();
     },
     returnFn: function(x, result, prev) {
-        this.end(x, JSON.stringify(result), "output", prev);
+        this.end(x, prev);
+        this.result(result);
     },
     errorFn: function(x, result, prev) {
-        this.end(x, "ERROR: "+JSON.stringify(result), "error", prev);
+        this.end(x, prev);
+        this.error(result);
     },
     start: function() {
         // Create an evaluation context that describes the how the code is to be executed.

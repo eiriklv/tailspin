@@ -25,8 +25,8 @@ window.onload = function() {
     
     tailspinDebugger = new Debugger(mySource);
     tailspinDebugger.callRunFunctionOnRunning = true;
-    tailspinDebugger.result = console.log;
-    tailspinDebugger.error = console.error;
+    tailspinDebugger.result = console.log.bind(console);
+    tailspinDebugger.error = console.error.bind(console);
     
     // Load saved code.
     if (typeof localStorage["Source"] === "string") {

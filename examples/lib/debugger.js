@@ -27,6 +27,8 @@ function Debugger(source, supportCode) {
     }
     
     this.reset();
+    
+    this.preRunSource = true;
 }
 
 Debugger.prototype = {
@@ -42,6 +44,8 @@ Debugger.prototype = {
         this.interpreter.global.console = {
             log:function(msg) {console.log(msg);}
         };
+        
+        this.setGlobals();
         
         this.runSupport();
         
@@ -100,9 +104,9 @@ Debugger.prototype = {
     runSupport: function() {
         // Run any support code that has been loaded.
         if (this.supportCode.length > 0) {
-            /*if (window._options && window._options.preRunSource) {
-                DebuggerAgent.preRunSource();
-            }*/
+            if (this.preRunSource) {
+                this.doPreRunSource();
+            }
             
             // Run synchronously for now.
             var self = this;
@@ -122,6 +126,36 @@ Debugger.prototype = {
                     throw e;
                 });
         }
+    },
+    // Runs the source quietly without triggering any visualisation.
+    doPreRunSource: function() {
+        this.setGlobals();
+        var source = this.source.getValue();
+        var x = this.interpreter.createExecutionContext();
+        
+        this.interpreter.evaluateInContext(source, "source", 1, x,
+            function(r) {},
+            function(e) {console.error(e);});
+    },
+    runUserScript: function(script, completionHandler) {
+        this.setGlobals();
+        this.state = "paused";
+        var self = this;
+        var source = this.source.getValue();
+        
+        var setSteps = function(n) {
+            self.timeSlider.disabled = false;
+            self.timeSlider.max = n;
+            self.start(script, "runUserScript", completionHandler);
+        };
+        
+        this.countSteps([
+              {randomSeed:this.interpreter.randomSeed},
+              {source:source, url:"source"},
+              {source:this.supportCode, url:"_support"},
+              {source:script, url:"runUserScript", count:true, runCount:true}
+            ]
+            , setSteps);
     },
     
     
@@ -238,7 +272,7 @@ Debugger.prototype = {
         this.end(x, prev);
         this.error(result);
     },
-    start: function() {
+    start: function(script) {
         // Create an evaluation context that describes the how the code is to be executed.
         var x = this.interpreter.createExecutionContext();
         
@@ -265,7 +299,9 @@ Debugger.prototype = {
             }
             
             delete self.executePrev;
-            self.executeNext = null;
+            self.executeNext = function() {
+                self.start(script);
+            }
             
             if (self.updateCallback) {
                 self.updateCallback(null, x, false, 100);
@@ -274,7 +310,7 @@ Debugger.prototype = {
             self.updateButtons();
         };
         
-        var source = this.source.getValue();
+        var source = typeof script === "string"? script : this.source.getValue();
         
         if (this.callRunFunctionOnRunning && x.lookupInScope("run")) {
             var x2 = this.interpreter.createExecutionContext();
@@ -299,6 +335,18 @@ Debugger.prototype = {
         else {
             // Run the code.
             this.interpreter.evaluateInContext(source, "source", 0, x, this.returnFn.bind(this, x), this.errorFn.bind(this, x), prev);
+        }
+    },
+    
+    // Loads in any custom globals provided by the globalsCallback.
+    setGlobals: function() {
+        if (this.globalsCallback) {
+            var globals = this.globalsCallback();
+            for (var g in globals) {
+                if (globals.hasOwnProperty(g)) {
+                    this.interpreter.global[g] = this.interpreter.translate(globals[g]);
+                }
+            }
         }
     },
     

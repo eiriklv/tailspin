@@ -14,14 +14,12 @@ window.onload = function() {
       lineNumbers:true,
       mode:"javascript",
       indentUnit:4});
-    mySource.on('changes', sourceUpdate);
     
     mySupport = CodeMirror(document.getElementById("support"), {
       value: "",
       lineNumbers:true,
       mode: "javascript",
       indentUnit:4});
-    mySupport.on('changes', supportUpdate);
     
     tailspinDebugger = new Debugger(mySource);
     tailspinDebugger.callRunFunctionOnRunning = true;
@@ -56,6 +54,9 @@ window.onload = function() {
     
     updateVisualisation();
     selectTab(0);
+    
+    mySupport.on('changes', supportUpdate);
+    mySource.on('changes', sourceUpdate);
 }
 
 function updateVisualisation() {
@@ -69,6 +70,9 @@ function updateVisualisation() {
         
         v.contentWindow.reset = function() {
             tailspinDebugger.reset();
+        };
+        v.contentWindow.runScript = function(script, completionCallback) {
+            tailspinDebugger.runUserScript(script, completionCallback);
         };
         
         // Reset the debugger.

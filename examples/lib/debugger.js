@@ -27,8 +27,6 @@ function Debugger(source, supportCode) {
     }
     
     this.reset();
-    
-    this.preRunSource = true;
 }
 
 Debugger.prototype = {
@@ -80,9 +78,11 @@ Debugger.prototype = {
                 
                 this.countSteps([
                       {randomSeed:this.interpreter.randomSeed},
-                      {setGlobal:"__args", value:args},
+                      {globals:{"__args":args}},
+                      {source:"function preRun(){}", url:"_preRun"},
                       {source:this.supportCode, url:"_support"},
                       {source:this.source.getValue(), url:"my-code", count:true},
+                      {source:"preRun()", url:"_runPreRun"},
                       {source:"run(__args)", url:"_run", runCount:true}
                     ]
                     , setSteps);
@@ -112,16 +112,7 @@ Debugger.prototype = {
             var self = this;
             var x = this.interpreter.createExecutionContext();
             this.interpreter.evaluateInContext(this.supportCode, "_supportCode", 1, x,
-                function(r) {
-                    /*if (!(window._options && window._options.preRunSource)) {
-                        DebuggerAgent.reset();
-                    }
-                    else {
-                        if (self.updateCallback) {
-                            self.updateCallback(null, self.currentExecutionContext, false, 0);
-                        }
-                    }*/
-                },
+                function(r) {},
                 function(e) {
                     throw e;
                 });
@@ -137,25 +128,44 @@ Debugger.prototype = {
             function(r) {},
             function(e) {console.error(e);});
     },
-    runUserScript: function(script, completionHandler) {
+    runUserScript: function(script) {
         this.setGlobals();
         this.state = "paused";
         var self = this;
         var source = this.source.getValue();
         
+        // Reset the time slider.
+        this.timeSlider.min = -1;
+        this.timeSlider.value = -1;
+        this.timeSlider.disabled = true;
+        
         var setSteps = function(n) {
             self.timeSlider.disabled = false;
             self.timeSlider.max = n;
-            self.start(script, "runUserScript", completionHandler);
         };
+        
+        // Send persistent globals to the web-worker for counting steps.
+        var pGlobals = {};
+        if (this.persistentGlobals) {
+            for (var i=0, c=this.persistentGlobals.length; i<c; i++) {
+                var g = this.persistentGlobals[i];
+                pGlobals[g] = this.interpreter.global[g];
+            }
+        }
         
         this.countSteps([
               {randomSeed:this.interpreter.randomSeed},
-              {source:source, url:"source"},
+              {source:source, url:"my-code", count:true},
+              {source:"function preRun(){}", url:"_preRun"},
               {source:this.supportCode, url:"_support"},
-              {source:script, url:"runUserScript", count:true, runCount:true}
+              {globals:pGlobals},
+              {source:"preRun()", url:"_runPreRun"},
+              {source:script, url:"runUserScript", runCount:true}
             ]
             , setSteps);
+        
+        // Start running the supplied script as normal.
+        self.start(script);
     },
     
     
@@ -311,30 +321,42 @@ Debugger.prototype = {
         };
         
         var source = typeof script === "string"? script : this.source.getValue();
+        var sourceName = typeof script === "string"? "script" : "source";
         
-        if (this.callRunFunctionOnRunning && x.lookupInScope("run")) {
-            var x2 = this.interpreter.createExecutionContext();
-            // Run the source silently first then run the run() function.
-            var runFn = function() {
-                // If there is an argsCallback, use the return value to send to the run(args) function.
-                var args = "";
-                if (this.argsCallback) {
-                    this.interpreter.global.__args = this.argsCallback(false);
-                    args = "__args";
-                }
-                // Run the support function run(args?).
-                this.interpreter.evaluateInContext("run("+args+")", "_support_run", 0, x, this.returnFn.bind(this, x), this.errorFn.bind(this, x), prev);
-            }.bind(this);
-            
-            this.interpreter.evaluateInContext(source, "source", 1, x2,
-                runFn,        // return continuation
-                function(e) { // exception continuation
-                    throw e;
-                });
+        var runFn = function () {
+            if (self.callRunFunctionOnRunning && x.lookupInScope("run")) {
+                var x2 = self.interpreter.createExecutionContext();
+                // Run the source silently first then run the run() function.
+                var runFn2 = function() {
+                    // If there is an argsCallback, use the return value to send to the run(args) function.
+                    var args = "";
+                    if (self.argsCallback) {
+                        self.interpreter.global.__args = self.argsCallback(false);
+                        args = "__args";
+                    }
+                    // Run the support function run(args?).
+                    self.interpreter.evaluateInContext("run("+args+")", "_support_run", 0, x, self.returnFn.bind(self, x), self.errorFn.bind(self, x), prev);
+                };
+                
+                self.interpreter.evaluateInContext(source, sourceName, 1, x2,
+                    runFn2,       // return continuation
+                    function(e) { // exception continuation
+                        throw e;
+                    });
+            }
+            else {
+                // Run the code.
+                self.interpreter.evaluateInContext(source, sourceName, 0, x, self.returnFn.bind(self, x), self.errorFn.bind(self, x), prev);
+            }
+        }
+        
+        // If there is a preRun function defined, call that first.
+        if (x.lookupInScope("preRun")) {
+            var x2 = self.interpreter.createExecutionContext();
+            self.interpreter.evaluateInContext("preRun()", "_runPreRun", 0, x2, runFn, self.errorFn.bind(self, x), prev);
         }
         else {
-            // Run the code.
-            this.interpreter.evaluateInContext(source, "source", 0, x, this.returnFn.bind(this, x), this.errorFn.bind(this, x), prev);
+            runFn();
         }
     },
     

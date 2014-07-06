@@ -52,11 +52,18 @@ window.onload = function() {
         supportDocs[i].element = t;
     }
     
+    updateOptions();
     updateVisualisation();
     selectTab(0);
     
     mySupport.on('changes', supportUpdate);
     mySource.on('changes', sourceUpdate);
+}
+
+function updateOptions() {
+    var options = JSON.parse(supportDocs[1].src);
+    tailspinDebugger.preRunSource = options.preRunSource;
+    tailspinDebugger.persistentGlobals = options.persistentGlobals;
 }
 
 function updateVisualisation() {
@@ -71,8 +78,8 @@ function updateVisualisation() {
         v.contentWindow.reset = function() {
             tailspinDebugger.reset();
         };
-        v.contentWindow.runScript = function(script, completionCallback) {
-            tailspinDebugger.runUserScript(script, completionCallback);
+        v.contentWindow.runScript = function(script) {
+            tailspinDebugger.runUserScript(script);
         };
         
         // Reset the debugger.
@@ -97,7 +104,10 @@ function supportUpdateSave() {
         tailspinDebugger.supportCode = supportDocs[0].src;
         tailspinDebugger.reset();
     }
-    if (selectedDoc === 2) {
+    else if (selectedDoc === 1) {
+        updateOptions();
+    }
+    else if (selectedDoc === 2) {
         updateVisualisation();
     }
     updateSupportTimeout = null;

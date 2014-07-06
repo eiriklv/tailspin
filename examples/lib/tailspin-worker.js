@@ -90,8 +90,12 @@ function runScript () {
         var xContext = script.runCount? xCounter : x;
         interpreter.evaluateInContext(script.source, script.url, 1, xContext, returnFn, errorFn);
     }
-    else if (typeof script.setGlobal === "string") {
-        interpreter.global[script.setGlobal] = script.value;
+    else if (typeof script.globals === "object") {
+        for (var g in script.globals) {
+            if (script.globals.hasOwnProperty(g)) {
+                interpreter.global[g] = script.globals[g];
+            }
+        }
         runScript();
     }
     else if (typeof script.randomSeed === "number") {

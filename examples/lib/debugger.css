@@ -1,6 +1,7 @@
 #visualiser {
-    width: 348px;
+    width: 420px;
     height: 348px;
+    margin-left:4px;
     display: inline-block;
     vertical-align: top;
 }

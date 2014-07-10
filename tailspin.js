@@ -424,7 +424,7 @@ var Tailspin = new function() {
     }
     function isValidIdentifierChar(ch, first) {
       if (ch <= "") {
-        if (ch >= "a" && ch <= "z" || ch >= "A" && ch <= "Z" || ch === "$" || ch === "_" || !first && ch >= "0" && ch <= "9") {
+        if (ch >= "a" && ch <= "z" || ch >= "A" && ch <= "Z" || ch === "$" || ch === "_" || !first && (ch >= "0" && ch <= "9")) {
           return true;
         }
         return false;
@@ -2922,14 +2922,14 @@ var Tailspin = new function() {
       construct: function(f, a, x, next, ret, cont, brk, thrw, prev) {}
     });
     var maxRnd = 4294967296;
-    var rndSeed = Math.random() * maxRnd;
+    var randomSeed = Math.random() * maxRnd;
     functionInternals.set(sandbox.Math.random, {
       call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
-        var oldSeed = rndSeed;
-        rndSeed = (1664525 * rndSeed + 1013904223) % maxRnd;
-        var rndFloat = rndSeed / maxRnd;
+        var oldSeed = randomSeed;
+        randomSeed = (1664525 * randomSeed + 1013904223) % maxRnd;
+        var rndFloat = randomSeed / maxRnd;
         var newPrev = function() {
-          rndSeed = oldSeed;
+          randomSeed = oldSeed;
           prev();
         };
         next(rndFloat, newPrev);
@@ -3013,7 +3013,7 @@ var Tailspin = new function() {
       } else if (typeof value === "object" && depth < 1) {
         var obj = {};
         for (var k in value) {
-          if (hasDirectProperty(k)) {
+          if (hasDirectProperty(value, k)) {
             obj[k] = translate(value[k], depth + 1);
           }
         }
@@ -3125,7 +3125,22 @@ var Tailspin = new function() {
           return "{get:function(){return " + name + ";}, set:function(v){return " + name + " = v;}, configurable:false}";
         }).join(", ");
         var fnStr = "(function(" + args + "){\n" + "return {args:arguments, accessors:[" + accessors + "]};\n            })";
-        var r = sandbox.eval(fnStr).apply(null, a);
+        var r;
+        try {
+          r = sandbox.eval(fnStr).apply(null, a);
+        } catch (e) {
+          if (e instanceof TypeError) {
+            r = sandbox.eval(fnStr);
+            var flattened_args = [ "r(" ];
+            for (var i = 0; i < a.length - 1; i++) {
+              flattened_args.push("a[" + i + "], ");
+            }
+            flattened_args.push(");");
+            r = eval(flattened_args.join(""));
+          } else {
+            throw e;
+          }
+        }
         var paramNames = {};
         for (var i = f.params.length - 1; i >= 0; i--) {
           if (!Object.prototype.hasOwnProperty.call(this, f.params[i])) {
@@ -3190,6 +3205,7 @@ var Tailspin = new function() {
           x2.thisObject = toObject(t) || global;
         }
         x2.functionInstance = this;
+        x2.function = f;
         x2.control = x.control;
         x2.asynchronous = x.asynchronous;
         x2.stack = x.stack.slice();
@@ -3201,6 +3217,9 @@ var Tailspin = new function() {
           object: new Activation(n, a, f),
           parent: this.scope
         };
+        if (!x.strict && !x2.strict) {
+          f._caller = x.function;
+        }
         if (next) {
           x2.execute(n.body, function(result, prev) {
             next(undefined, prev);
@@ -3294,6 +3313,14 @@ var Tailspin = new function() {
     exports.translate = translate;
     exports.resetEnvironment = resetEnvironment;
     exports.cleanup = cleanup;
+    Object.defineProperty(exports, "randomSeed", {
+      get: function() {
+        return randomSeed;
+      },
+      set: function(s) {
+        randomSeed = s;
+      }
+    });
     exports.sandbox = sandbox;
     exports.sandboxError = sandboxError;
     exports.sandboxArray = sandboxArray;
@@ -3406,7 +3433,11 @@ var Tailspin = new function() {
           return;
         } else if (typeof ref.base === "function" && ref.propertyName === "caller") {
           ref.base.caller;
-          next(undefined, prev, ref);
+          if (x.strict) {
+            next(undefined, prev, ref);
+          } else {
+            next(ref.base._caller, prev, ref);
+          }
         } else {
           var base = toObject(ref.base);
           var propDesc = Tailspin.Utility.getPropertyDescriptor(base, ref.propertyName);
@@ -4378,6 +4409,14 @@ var Tailspin = new function() {
     exports.cleanup = sandboxExports.cleanup;
     exports.translate = sandboxExports.translate;
     exports.resetEnvironment = sandboxExports.resetEnvironment;
+    Object.defineProperty(exports, "randomSeed", {
+      get: function() {
+        return sandboxExports.randomSeed;
+      },
+      set: function(s) {
+        sandboxExports.randomSeed = s;
+      }
+    });
     exports.evaluate = evaluate;
     exports.evaluateInContext = evaluateInContext;
     exports.execute = execute;

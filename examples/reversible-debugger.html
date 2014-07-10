@@ -1,0 +1,73 @@
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <title>Tailspin Example - Reversible Debugger</title>
+    
+    <link rel="stylesheet" type="text/css" href="lib/codemirror.css">
+    <link rel="stylesheet" type="text/css" href="lib/debugger.css">
+    <link rel="stylesheet" type="text/css" href="examples.css">
+    
+    <script type="text/javascript" src="lib/codemirror-compressed.js"></script>
+    <script type="text/javascript" src="lib/tailspin.js"></script>
+    <script type="text/javascript" src="lib/debugger.js"></script>
+    
+    <script type="text/javascript">
+        window.onload = function() {
+            var mySource = CodeMirror(document.getElementById("debugger"), {
+              value:"function gcd(a, b) {\n\
+    console.log(a+\", \"+b);\n\
+    if (b === 0) {\n\
+        return a;\n\
+    }\n\
+    return gcd(b, a % b);\n\
+}\n\
+\n\
+gcd(12, 90);",
+              lineNumbers:true,
+              mode:"javascript",
+              indentUnit:4});
+            
+            tailspinDebugger = new Debugger(mySource);
+            
+            var myConsole = CodeMirror.fromTextArea(document.getElementById("console"),
+                {readOnly:true, mode:"text"});
+
+            var consoleLog = function(logClass, msg) {
+                var from = myConsole.posFromIndex(myConsole.getValue().length);
+                myConsole.replaceRange(msg+"\n", from);
+                myConsole.markText(from, CodeMirror.Pos(myConsole.lastLine()), {className:logClass});
+            }
+            
+            tailspinDebugger.result = consoleLog.bind(null, "log");
+            tailspinDebugger.error = consoleLog.bind(null, "error");
+            
+            // Save the code on changes.
+            mySource.on('change', function(cMirror) {
+                localStorage["debugger-source"] = cMirror.getValue();
+                tailspinDebugger.reset();
+            });
+            
+            // Load saved code.
+            var savedScript = localStorage["debugger-source"];
+            if (typeof savedScript === "string") {
+                mySource.setValue(savedScript);
+            }
+        }
+    </script>
+</head>
+
+<body>
+
+<div>
+<div id="debugger" style="width:100%">
+<div id="status-bar"><button id="animate-button" class="pause" onclick="tailspinDebugger.animate();"></button><button id="step-back-button" onclick="tailspinDebugger.back();"></button><button id="step-forward-button" onclick="tailspinDebugger.forward();"></button><button id="step-over-button" onclick="tailspinDebugger.stepOver();"></button><button id="step-out-button" onclick="tailspinDebugger.stepOut();"></button>
+<span id="speed-span"><img src="images/slow.svg" width=16 height=16><input type="range" id="speed-slider"></input><img src="images/fast.svg" width=16 height=16></span>
+</div>
+<div id="timebar"><img src="images/clock.svg" width=16 height=16><input type="range" id="time-slider" value=0 disabled></input></div>
+</div>
+</div>
+
+<textarea id="console"></textarea>
+
+</body>
+</html>

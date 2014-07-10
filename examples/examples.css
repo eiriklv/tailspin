@@ -3,27 +3,22 @@
     margin-top: 5px;
 }
 
-pre > .log:first-child:before {
+pre .log:first-child:before {
     content: "  ";
     white-space: pre;
 }
-pre > .input:first-child:before {
+pre .input:first-child:before {
     content: "> ";
 }
-pre > .input {
+pre .input {
     color: #2C57EA !important;
 }
-pre > .output:first-child:before {
+pre .output:first-child:before {
     content: "< ";
     color: #aaa;
 }
-pre > .error {
+pre .error {
     color: #f00 !important;
-}
-
-.current-line {
-    background-color: rgb(171, 191, 254);
-    outline: 1px solid rgb(64, 115, 244);
 }
 
 canvas {

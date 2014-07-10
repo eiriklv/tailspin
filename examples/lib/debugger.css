@@ -1,6 +1,7 @@
 #visualiser {
-    width: 348px;
+    width: 420px;
     height: 348px;
+    margin-left:4px;
     display: inline-block;
     vertical-align: top;
 }
@@ -39,6 +40,15 @@ body, html {
     box-sizing: border-box;
 }
 
+.current-line {
+    background-color: rgb(171, 191, 254);
+    outline: 1px solid rgb(64, 115, 244);
+}
+
+.CodeMirror {
+    border: 1px solid #999;
+    margin-top: 5px;
+}
 
 #source {
     width: 200px;
@@ -99,12 +109,28 @@ body, html {
     background-size:16px 16px;
 }
 
+#run-button {
+    background: url(../images/debuggerRun.svg) no-repeat;
+}
+
+#stop-button {
+    background: url(../images/debuggerStop.svg) no-repeat;
+}
+
+#pause-button {
+    background: url(../images/debuggerPause.svg) no-repeat;
+}
+
 #step-back-button {
     background: url(../images/debuggerStepBack.svg) no-repeat;
 }
 
 #step-forward-button {
     background: url(../images/debuggerStepForward.svg) no-repeat;
+}
+
+#step-into-button {
+    background: url(../images/debuggerStepInto.svg) no-repeat;
 }
 
 #step-over-button {

@@ -1,4 +1,4 @@
-importScripts('../../tailspin.js');
+importScripts('tailspin.js');
 
 var interpreter = new Tailspin.Interpreter();
 var x;
@@ -41,7 +41,7 @@ function setupCounting () {
         var currentStackDepth = -1;
         
         xCounter.control = function(n, x, next, prev) {
-            if (lineCount > 1000) {
+            if (lineCount > 50000) {
                 postMessage({type:"error", message:"count limit", lineCount:lineCount});
                 return;
             }
@@ -80,9 +80,30 @@ onmessage = function (e) {
 }
 
 function runScript () {
+    if (scripts.length === 0) {
+        return;
+    }
+    
     var script = scripts.shift();
     
-    var xContext = script.runCount? xCounter : x;
-    
-    interpreter.evaluateInContext(script.source, script.url, 1, xContext, returnFn, errorFn);
+    if (typeof script.source === "string") {
+        var xContext = script.runCount? xCounter : x;
+        interpreter.evaluateInContext(script.source, script.url, 1, xContext, returnFn, errorFn);
+    }
+    else if (typeof script.globals === "object") {
+        for (var g in script.globals) {
+            if (script.globals.hasOwnProperty(g)) {
+                interpreter.global[g] = script.globals[g];
+            }
+        }
+        runScript();
+    }
+    else if (typeof script.randomSeed === "number") {
+        interpreter.randomSeed = script.randomSeed;
+        runScript();
+    }
+    else {
+        // Run the next script.
+        runScript();
+    }
 }

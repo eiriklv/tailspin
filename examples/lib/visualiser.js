@@ -14,17 +14,17 @@ window.onload = function() {
       lineNumbers:true,
       mode:"javascript",
       indentUnit:4});
-    mySource.on('changes', sourceUpdate);
     
     mySupport = CodeMirror(document.getElementById("support"), {
       value: "",
       lineNumbers:true,
       mode: "javascript",
       indentUnit:4});
-    mySupport.on('changes', supportUpdate);
     
     tailspinDebugger = new Debugger(mySource);
-    tailspinDebugger.log = console.log;
+    tailspinDebugger.callRunFunctionOnRunning = true;
+    tailspinDebugger.result = console.log.bind(console);
+    tailspinDebugger.error = console.error.bind(console);
     
     // Load saved code.
     if (typeof localStorage["Source"] === "string") {
@@ -52,8 +52,18 @@ window.onload = function() {
         supportDocs[i].element = t;
     }
     
+    updateOptions();
     updateVisualisation();
     selectTab(0);
+    
+    mySupport.on('changes', supportUpdate);
+    mySource.on('changes', sourceUpdate);
+}
+
+function updateOptions() {
+    var options = JSON.parse(supportDocs[1].src);
+    tailspinDebugger.preRunSource = options.preRunSource;
+    tailspinDebugger.persistentGlobals = options.persistentGlobals;
 }
 
 function updateVisualisation() {
@@ -67,6 +77,9 @@ function updateVisualisation() {
         
         v.contentWindow.reset = function() {
             tailspinDebugger.reset();
+        };
+        v.contentWindow.runScript = function(script) {
+            tailspinDebugger.runUserScript(script);
         };
         
         // Reset the debugger.
@@ -91,7 +104,10 @@ function supportUpdateSave() {
         tailspinDebugger.supportCode = supportDocs[0].src;
         tailspinDebugger.reset();
     }
-    if (selectedDoc === 2) {
+    else if (selectedDoc === 1) {
+        updateOptions();
+    }
+    else if (selectedDoc === 2) {
         updateVisualisation();
     }
     updateSupportTimeout = null;

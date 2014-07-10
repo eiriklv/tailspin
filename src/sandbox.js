@@ -452,17 +452,17 @@ functionInternals.set(sortFn, {
 });
 
 var maxRnd = 4294967296;
-var rndSeed = Math.random()*maxRnd;
+var randomSeed = Math.random()*maxRnd;
 
 functionInternals.set(sandbox.Math.random, {
     call: function(f, t, a, x, next, ret, cont, brk, thrw, prev) {
-        var oldSeed = rndSeed;
+        var oldSeed = randomSeed;
         // Use a LCG.
-        rndSeed = (1664525*rndSeed+1013904223)%maxRnd;
-        var rndFloat = rndSeed/maxRnd;
+        randomSeed = (1664525*randomSeed+1013904223)%maxRnd;
+        var rndFloat = randomSeed/maxRnd;
         
         var newPrev = function() {
-            rndSeed = oldSeed;
+            randomSeed = oldSeed;
             prev();
         }
         
@@ -583,7 +583,7 @@ function translate(value, depth) {
         // Translate objects to a depth of 1.
         var obj = {};
         for (var k in value) {
-            if (hasDirectProperty(k)) {
+            if (hasDirectProperty(value, k)) {
                 obj[k] = translate(value[k], depth+1);
             }
         }
@@ -736,7 +736,7 @@ var continuationMarker = {};
 var calleeCallerPoisonFn = sandbox.eval("'use strict'; Object.getOwnPropertyDescriptor(function() {}, 'caller').get");
 
 function Activation(f, a, callee) {
-    if (f) {        
+    if (f) {
         // Ugly method of creating an arguments object with the correct properties.
         // Allow parameter named 'arguments' by changing the name of the parameter.
         var safeParams = f.params.map(function(name) {
@@ -751,8 +751,28 @@ function Activation(f, a, callee) {
         var fnStr = "(function("+args+"){\n"+
                 "return {args:arguments, accessors:["+accessors+"]};\n\
             })";
-        
-        var r = sandbox.eval(fnStr).apply(null, a);
+        // Some browsers (cough cough PhantomJS cough cough) are too old.
+        // They do not support apply(null, ARRAY_LIKE_OBJ)
+        // soo....
+        // We will abuse eval to force it to work while preserving the fast
+        // path functionality for others.
+
+        var r;
+        try {
+          r = sandbox.eval(fnStr).apply(null, a);
+        } catch (e) {
+          if (e instanceof TypeError) {
+            r = sandbox.eval(fnStr);
+            var flattened_args = ["r("];
+            for (var i = 0; i < a.length-1; i++) {
+              flattened_args.push('a[' + i + '], ')
+            }
+            flattened_args.push(');');
+            r = eval(flattened_args.join(''));
+          } else {
+            throw e;
+          }
+        }
         var paramNames = {};
         
         // Set all parameters on Activation.
@@ -814,13 +834,17 @@ var FIp = FunctionInternals.prototype = {
         }
         
         x2.functionInstance = this;
+        x2.function = f;
         x2.control = x.control;
         x2.asynchronous = x.asynchronous;
         // copy the stack and add the current node onto it
         x2.stack = x.stack.slice();
         x2.stack.push({node:x.currentNode, executionContext:x});
-        
         x2.scope = {object: new Activation(n, a, f), parent: this.scope};
+        if (!x.strict && !x2.strict) {
+            // Hide the caller variable inside the callee (we can't overwrite arguments.callee on some browsers)
+            f._caller = x.function;
+        }
         
         if (next) {
             // next continuation enforces undefined value
@@ -934,6 +958,8 @@ exports.functionInternals = functionInternals;
 exports.translate = translate;
 exports.resetEnvironment = resetEnvironment;
 exports.cleanup = cleanup;
+
+Object.defineProperty(exports, "randomSeed", {get:function() {return randomSeed;}, set:function(s) {randomSeed = s;}});
 
 exports.sandbox = sandbox;
 exports.sandboxError = sandboxError;

@@ -48,6 +48,15 @@
                 log:function(msg) {consoleLog(msg, 'log');}
             };
             consoleLog("Welcome to Tailspin...");
+            
+            setupExamples();
+        }
+        
+        function setupExamples() {
+            var ex = document.getElementById("examples");
+            for (var i=0, c=ex.childNodes.length; i<c; i++) {
+                ex.childNodes[i].innerHTML = "<a href='javascript:void(0)' onclick='runExample(this)'>"+ex.childNodes[i].innerHTML+"</a>";
+            }
         }
         
         function consoleLog(msg, logClass) {
@@ -58,6 +67,12 @@
                 readOnly: true
               });
             myConsole_lastLogRange = myConsole.posFromIndex(myConsole.getValue().length);
+        }
+        
+        function runExample(ex) {
+            var code = ex.textContent.trim();
+            consoleLog("> "+code);
+            run(code);
         }
         
         function run(source) {
@@ -87,7 +102,7 @@
 
 <p>
 Try:
-<ul>
+<ul id="examples">
 <li>3+5
 <li>x = 14
 <li>x*x

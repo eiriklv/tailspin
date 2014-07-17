@@ -79,7 +79,7 @@ if (typeof document === "object") {
     document.body.appendChild(iframe);
     
     // Split the script tag so that if this needs to be inside a script tag we don't end the tag.
-    iframe.contentWindow.document.write('<script type="text/javascript">'+sandboxFns+"</scr"+"ipt>");
+    iframe.contentWindow.document.write('<script>'+sandboxFns+"</scr"+"ipt>");
     
     nativeBase = (new Function("return this"))();
     sandbox = iframe.contentWindow;

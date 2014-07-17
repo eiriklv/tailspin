@@ -1028,7 +1028,6 @@ var Tailspin = new function() {
     }
     Np.toSource = function toSource() {
       var mock = {};
-      var self = this;
       mock.type = unevalableConst(this.type);
       if (this.generatingSource) return mock.toSource();
       this.generatingSource = true;
@@ -1176,7 +1175,7 @@ var Tailspin = new function() {
     };
     var DECLARED_FORM = 0, EXPRESSED_FORM = 1, STATEMENT_FORM = 2;
     Pp.Statement = function Statement() {
-      var i, label, n, n2, p, c, ss, tt = this.t.get(true), tt2, x0, x2, x3;
+      var label, n, n2, c, tt = this.t.get(true), tt2, x2, x3;
       var comments = this.t.blockComments;
       switch (tt) {
        case FUNCTION:
@@ -1504,7 +1503,7 @@ var Tailspin = new function() {
       return n;
     };
     Pp.ExplicitSpecifierSet = function ExplicitSpecifierSet(SpecifierRHS) {
-      var n, n2, id, tt;
+      var n, n2, id;
       n = this.newNode({
         type: OBJECT_INIT
       });
@@ -1611,7 +1610,7 @@ var Tailspin = new function() {
       return f;
     };
     Pp.Variables = function Variables() {
-      var n, n2, ss, i, s, tt;
+      var n, n2, s, tt;
       tt = this.t.token.type;
       switch (tt) {
        case VAR:
@@ -1672,7 +1671,7 @@ var Tailspin = new function() {
       if (n.type === ARRAY_COMP) this.fail("Invalid array comprehension left-hand side");
       if (n.type !== ARRAY_INIT && n.type !== OBJECT_INIT) return;
       var lhss = {};
-      var nn, n2, idx, sub, cc, c = n.children;
+      var nn, idx, sub, cc, c = n.children;
       for (var i = 0, j = c.length; i < j; i++) {
         if (!(nn = c[i])) continue;
         if (nn.type === PROPERTY_INIT) {
@@ -1804,7 +1803,6 @@ var Tailspin = new function() {
        case FALSE:
        case NULL:
         throw this.t.newReferenceError("Bad left-hand side of assignment");
-        break;
 
        default:
         this.fail("Bad left-hand side of assignment");
@@ -1997,7 +1995,7 @@ var Tailspin = new function() {
       return n;
     };
     Pp.MemberExpression = function MemberExpression(allowCallSyntax) {
-      var n, n2, name, tt;
+      var n, n2, tt;
       if (this.match(NEW)) {
         n = this.newNode();
         n.push(this.MemberExpression(false));
@@ -2088,7 +2086,7 @@ var Tailspin = new function() {
         break;
 
        case LEFT_CURLY:
-        var id, fd;
+        var id;
         var idTypes = {};
         n = this.newNode({
           type: OBJECT_INIT
@@ -2217,9 +2215,6 @@ var Tailspin = new function() {
     }
     function isBlock(n) {
       return n && n.type === BLOCK;
-    }
-    function isNonEmptyBlock(n) {
-      return isBlock(n) && n.children.length > 0;
     }
     function nodeStrEscape(str) {
       return str.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/</g, "\\u003C").replace(/>/g, "\\u003E");
@@ -3376,7 +3371,6 @@ var Tailspin = new function() {
     var newTypeError = sandboxExports.newTypeError;
     var newReferenceError = sandboxExports.newReferenceError;
     var ExecutionContext = sandboxExports.ExecutionContext;
-    var isPrimitive = sandboxExports.isPrimitive;
     var isObject = sandboxExports.isObject;
     var checkObjectCoercible = sandboxExports.checkObjectCoercible;
     var toObjectCheck = sandboxExports.toObjectCheck;
@@ -3746,8 +3740,7 @@ var Tailspin = new function() {
           }
         };
         executeGV(n.object, x, function(objectIn, prev, ref) {
-          var t = objectIn === null || objectIn === undefined ? objectIn : toObjectCheck(objectIn, ref, n.object);
-          for (var i in objectIn) {
+          for (var i in toObject(objectIn)) {
             a.push(i);
           }
           forLoop(0, prev);

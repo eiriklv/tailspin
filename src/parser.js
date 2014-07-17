@@ -291,7 +291,6 @@ function unevalableConst(code) {
 }
 Np.toSource = function toSource() {
     var mock = {};
-    var self = this;
     mock.type = unevalableConst(this.type);
     // avoid infinite recursion in case of back-links
     if (this.generatingSource)
@@ -476,7 +475,7 @@ var DECLARED_FORM = 0, EXPRESSED_FORM = 1, STATEMENT_FORM = 2;
  * Parses a Statement.
  */
 Pp.Statement = function Statement() {
-    var i, label, n, n2, p, c, ss, tt = this.t.get(true), tt2, x0, x2, x3;
+    var label, n, n2, c, tt = this.t.get(true), tt2, x2, x3;
 
     var comments = this.t.blockComments;
 
@@ -852,7 +851,7 @@ Pp.Return = function Return() {
  * ExplicitSpecifierSet :: (() -> node) -> OBJECT_INIT node
  */
 Pp.ExplicitSpecifierSet = function ExplicitSpecifierSet(SpecifierRHS) {
-    var n, n2, id, tt;
+    var n, n2, id;
 
     n = this.newNode({ type: OBJECT_INIT });
     this.mustMatch(LEFT_CURLY);
@@ -999,7 +998,7 @@ Pp.FunctionDefinition = function FunctionDefinition(requireName, functionForm, c
  * initializations).
  */
 Pp.Variables = function Variables() {
-    var n, n2, ss, i, s, tt;
+    var n, n2, s, tt;
 
     tt = this.t.token.type;
     switch (tt) {
@@ -1073,7 +1072,7 @@ Pp.checkDestructuring = function checkDestructuring(n, simpleNamesOnly) {
         return;
 
     var lhss = {};
-    var nn, n2, idx, sub, cc, c = n.children;
+    var nn, idx, sub, cc, c = n.children;
     for (var i = 0, j = c.length; i < j; i++) {
         if (!(nn = c[i]))
             continue;
@@ -1224,7 +1223,6 @@ Pp.AssignExpression = function AssignExpression() {
         break;
       case NUMBER: case STRING: case TRUE: case FALSE: case NULL:
         throw this.t.newReferenceError("Bad left-hand side of assignment");
-        break;
       default:
         this.fail("Bad left-hand side of assignment");
         break;
@@ -1462,7 +1460,7 @@ Pp.UnaryExpression = function UnaryExpression() {
 }
 
 Pp.MemberExpression = function MemberExpression(allowCallSyntax) {
-    var n, n2, name, tt;
+    var n, n2, tt;
 
     if (this.match(NEW)) {
         n = this.newNode();
@@ -1558,7 +1556,7 @@ Pp.PrimaryExpression = function PrimaryExpression() {
         break;
 
       case LEFT_CURLY:
-        var id, fd;
+        var id;
         var idTypes = {}; // bit flags 1:value 2:getter 4:setter
         n = this.newNode({ type: OBJECT_INIT });
 

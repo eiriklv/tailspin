@@ -76,10 +76,6 @@ function isBlock(n) {
     return n && (n.type === BLOCK);
 }
 
-function isNonEmptyBlock(n) {
-    return isBlock(n) && n.children.length > 0;
-}
-
 function nodeStrEscape(str) {
     return str.replace(/\\/g, "\\\\")
               .replace(/"/g, "\\\"")

@@ -66,7 +66,6 @@ var newReferenceError = sandboxExports.newReferenceError;
 var ExecutionContext = sandboxExports.ExecutionContext;
 
 // Grab useful functions.
-var isPrimitive = sandboxExports.isPrimitive;
 var isObject = sandboxExports.isObject;
 var checkObjectCoercible = sandboxExports.checkObjectCoercible;
 var toObjectCheck = sandboxExports.toObjectCheck;
@@ -596,8 +595,7 @@ executeFunctions[FOR_IN] = function exForIn(n, x, next, ret, cont, brk, thrw, pr
         
         // Execute and get the value of the object to iterate over.
         executeGV(n.object, x, function(objectIn, prev, ref) {
-                var t = (objectIn === null || objectIn === undefined) ? objectIn : toObjectCheck(objectIn, ref, n.object);
-                for (var i in objectIn) {
+                for (var i in toObject(objectIn)) {
                     a.push(i);
                 }
             

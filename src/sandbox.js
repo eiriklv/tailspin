@@ -226,7 +226,7 @@ functionInternals.set(sandbox.Function, {
         
         var x2 = {};
         x2.scope = {object: global, parent: null};
-        x2.stack = [];
+        x2.stack = [x2];
         next(newFunction(f, x2), prev);
     }
 });
@@ -853,9 +853,9 @@ var FIp = FunctionInternals.prototype = {
         x2.function = f;
         x2.control = x.control;
         x2.asynchronous = x.asynchronous;
-        // copy the stack and add the current node onto it
+        // Copy the stack and add the current executionContext onto it.
         x2.stack = x.stack.slice();
-        x2.stack.push({node:x.currentNode, executionContext:x});
+        x2.stack.push(x2);
         x2.scope = {object: new Activation(n, a, f), parent: this.scope};
         if (!x.strict && !x2.strict) {
             // Hide the caller variable inside the callee (we can't overwrite arguments.callee on some browsers)
@@ -922,7 +922,7 @@ var FIp = FunctionInternals.prototype = {
 function ExecutionContext(type, strict) {
     this.type = type;
     this.strict = !!strict;
-    this.stack = [];
+    this.stack = [this];
 }
 
 ExecutionContext.prototype = {

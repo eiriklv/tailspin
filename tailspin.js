@@ -2722,7 +2722,7 @@ var Tailspin = new function() {
           object: global,
           parent: null
         };
-        x2.stack = [];
+        x2.stack = [ x2 ];
         next(newFunction(f, x2), prev);
       }
     });
@@ -3218,10 +3218,7 @@ var Tailspin = new function() {
         x2.control = x.control;
         x2.asynchronous = x.asynchronous;
         x2.stack = x.stack.slice();
-        x2.stack.push({
-          node: x.currentNode,
-          executionContext: x
-        });
+        x2.stack.push(x2);
         x2.scope = {
           object: new Activation(n, a, f),
           parent: this.scope
@@ -3275,7 +3272,7 @@ var Tailspin = new function() {
     function ExecutionContext(type, strict) {
       this.type = type;
       this.strict = !!strict;
-      this.stack = [];
+      this.stack = [ this ];
     }
     ExecutionContext.prototype = {
       scope: {

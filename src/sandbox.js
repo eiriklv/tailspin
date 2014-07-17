@@ -579,15 +579,31 @@ function translate(value, depth) {
             });
         }
     }
+    else if (Array.isArray(value) && depth < 1) {
+        // Translate arrays to a depth of 1.
+        var obj = [];
+        var didChange = false;
+        for (var i=0, c=value.length; i<c; i++) {
+            obj[i] = translate(value[i], depth+1);
+            didChange = didChange || obj[i] !== value[i];
+        }
+        if (didChange) {
+            value = obj;
+        }
+    }
     else if (typeof value === "object" && depth < 1) {
         // Translate objects to a depth of 1.
         var obj = {};
+        var didChange = false;
         for (var k in value) {
             if (hasDirectProperty(value, k)) {
                 obj[k] = translate(value[k], depth+1);
+                didChange = didChange || obj[k] !== value[k];
             }
         }
-        value = obj;
+        if (didChange) {
+            value = obj;
+        }
     }
     return value;
 }

@@ -4201,6 +4201,19 @@ var Tailspin = new function() {
       };
       forLoop(0, prev);
     };
+    function insertControlForReturnOnNext(n, x, next) {
+      if (x.control) {
+        var next_o = next;
+        next = function(v, prev) {
+          var newPrev = prevSaveValue(x, "returnedValue", prev);
+          x.returnedValue = v;
+          x.control(n, x, function(prev) {
+            next_o(v, prev);
+          }, newPrev);
+        };
+      }
+      return next;
+    }
     executeFunctions[CALL] = function exCall(n, x, next, ret, cont, brk, thrw, prev) {
       var c = n.children;
       executeGV(c[0], x, function(f, prev, r) {
@@ -4222,16 +4235,7 @@ var Tailspin = new function() {
                 t = undefined;
               }
             }
-            if (x.control) {
-              var next_o = next;
-              next = function(v, prev) {
-                var newPrev = prevSaveValue(x, "returnedValue", prev);
-                x.returnedValue = v;
-                x.control(n, x, function(prev) {
-                  next_o(v, prev);
-                }, newPrev);
-              };
-            }
+            next = insertControlForReturnOnNext(n, x, next);
             callFunction(f, t, a, x, next, ret, cont, brk, thrw, prev, options);
           }
         }, ret, cont, brk, thrw, prev);
@@ -4247,6 +4251,7 @@ var Tailspin = new function() {
             constructFunction(f, args, x, next, ret, cont, brk, thrw, prev);
           }
         };
+        next = insertControlForReturnOnNext(n, x, next);
         if (n.type === NEW) {
           var a = new sandbox.Object();
           Object.defineProperty(a, "length", {

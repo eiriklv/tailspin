@@ -1088,6 +1088,19 @@ executeFunctions[LIST] = function exList(n, x, next, ret, cont, brk, thrw, prev)
     forLoop(0, prev);
 };
 
+// Returns a modified 'next' continuation to both save the value as 'x.retunedValue' and to give the control function a chance to control flow.
+function insertControlForReturnOnNext(n, x, next) {
+    if (x.control) {
+        var next_o = next;
+        next = function(v, prev) {
+            var newPrev = prevSaveValue(x, "returnedValue", prev);
+            x.returnedValue = v;
+            x.control(n, x, function(prev){ next_o(v, prev); }, newPrev);
+        };
+    }
+    return next;
+}
+
 executeFunctions[CALL] = function exCall(n, x, next, ret, cont, brk, thrw, prev) {
     var c = n.children;
     executeGV(c[0], x, function(f, prev, r) {
@@ -1116,15 +1129,9 @@ executeFunctions[CALL] = function exCall(n, x, next, ret, cont, brk, thrw, prev)
                     }
                 }
                 
-                // handle control on return from calling
-                if (x.control) {
-                    var next_o = next;
-                    next = function(v, prev) {
-                        var newPrev = prevSaveValue(x, "returnedValue", prev);
-                        x.returnedValue = v;
-                        x.control(n, x, function(prev){ next_o(v, prev); }, newPrev);
-                    };
-                }
+                // Handle control on return from calling function.
+                next = insertControlForReturnOnNext(n, x, next);
+                
                 callFunction(f, t, a, x, next, ret, cont, brk, thrw, prev, options);
             }
         }, ret, cont, brk, thrw, prev);
@@ -1144,6 +1151,9 @@ executeFunctions[NEW] = function exNew(n, x, next, ret, cont, brk, thrw, prev) {
                 constructFunction(f, args, x, next, ret, cont, brk, thrw, prev);
             }
         };
+        
+        // Handle control on return from calling function.
+        next = insertControlForReturnOnNext(n, x, next);
         
         if (n.type === NEW) {// fixme: what is this???
             var a = new sandbox.Object();

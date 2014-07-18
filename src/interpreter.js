@@ -1087,13 +1087,21 @@ executeFunctions[LIST] = function exList(n, x, next, ret, cont, brk, thrw, prev)
 };
 
 // Returns a modified 'next' continuation to both save the value as 'x.retunedValue' and to give the control function a chance to control flow.
-function insertControlForReturnOnNext(n, x, next) {
+function insertControlForReturnOnNext(n, x, f, next) {
     if (x.control) {
         var next_o = next;
         next = function(v, prev) {
-            var newPrev = prevSaveValue(x, "returnedValue", prev);
+            // Add 'returnedValue' and 'returnedFrom' to execution context.
+            prev = prevSaveValue(x, "returnedValue", prev);
+            prev = prevSaveValue(x, "returnedFrom", prev);
             x.returnedValue = v;
-            x.control(n, x, function(prev){ next_o(v, prev); }, newPrev);
+            x.returnedFrom = f;
+            x.control(n, x, function(prev2) {
+                // Remove 'returnedValue' and 'returnedFrom' from execution context.
+                prev2 = prevDeleteValue(x, "returnedValue", prev2);
+                prev2 = prevDeleteValue(x, "returnedFrom", prev2);
+                next_o(v, prev2);
+              }, prev);
         };
     }
     return next;
@@ -1128,7 +1136,7 @@ executeFunctions[CALL] = function exCall(n, x, next, ret, cont, brk, thrw, prev)
                 }
                 
                 // Handle control on return from calling function.
-                next = insertControlForReturnOnNext(n, x, next);
+                next = insertControlForReturnOnNext(n, x, f, next);
                 
                 callFunction(f, t, a, x, next, ret, cont, brk, thrw, prev, options);
             }
@@ -1151,7 +1159,7 @@ executeFunctions[NEW] = function exNew(n, x, next, ret, cont, brk, thrw, prev) {
         };
         
         // Handle control on return from calling function.
-        next = insertControlForReturnOnNext(n, x, next);
+        next = insertControlForReturnOnNext(n, x, f, next);
         
         if (n.type === NEW) {// fixme: what is this???
             var a = new sandbox.Object();
@@ -1320,9 +1328,8 @@ function execute(n, x, next, ret, cont, brk, thrw, prev) {
         }
     }
     
-    // Set current node and remove returnedValue from execution context.
-    var newPrev = prevDeleteValue(x, "returnedValue", prev);
-    x.currentNode = n; // doesn't need reversibility
+    // Set current node (doesn't need reversibility?).
+    x.currentNode = n;
     
     if (x.control) {
         // the 'control' function provides an opportunity for controlling execution
@@ -1330,10 +1337,10 @@ function execute(n, x, next, ret, cont, brk, thrw, prev) {
         // x -- current execution-context
         // executeFn -- function(prev) continuation for execution
         // prev -- function() continuation for reverse execution
-        x.control(n, x, executeFn, newPrev);
+        x.control(n, x, executeFn, prev);
     }
     else {
-        executeFn(newPrev);
+        executeFn(prev);
     }
 }
 

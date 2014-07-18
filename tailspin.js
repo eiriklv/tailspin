@@ -2611,7 +2611,7 @@ var Tailspin = new function() {
       var iframe = document.createElement("iframe");
       iframe.style.display = "none";
       document.body.appendChild(iframe);
-      iframe.contentWindow.document.write('<script type="text/javascript">' + sandboxFns + "</scr" + "ipt>");
+      iframe.contentWindow.document.write("<script>" + sandboxFns + "</scr" + "ipt>");
       nativeBase = new Function("return this")();
       sandbox = iframe.contentWindow;
     } else {
@@ -4191,15 +4191,19 @@ var Tailspin = new function() {
       };
       forLoop(0, prev);
     };
-    function insertControlForReturnOnNext(n, x, next) {
+    function insertControlForReturnOnNext(n, x, f, next) {
       if (x.control) {
         var next_o = next;
         next = function(v, prev) {
-          var newPrev = prevSaveValue(x, "returnedValue", prev);
+          prev = prevSaveValue(x, "returnedValue", prev);
+          prev = prevSaveValue(x, "returnedFrom", prev);
           x.returnedValue = v;
-          x.control(n, x, function(prev) {
-            next_o(v, prev);
-          }, newPrev);
+          x.returnedFrom = f;
+          x.control(n, x, function(prev2) {
+            prev2 = prevDeleteValue(x, "returnedValue", prev2);
+            prev2 = prevDeleteValue(x, "returnedFrom", prev2);
+            next_o(v, prev2);
+          }, prev);
         };
       }
       return next;
@@ -4225,7 +4229,7 @@ var Tailspin = new function() {
                 t = undefined;
               }
             }
-            next = insertControlForReturnOnNext(n, x, next);
+            next = insertControlForReturnOnNext(n, x, f, next);
             callFunction(f, t, a, x, next, ret, cont, brk, thrw, prev, options);
           }
         }, ret, cont, brk, thrw, prev);
@@ -4241,7 +4245,7 @@ var Tailspin = new function() {
             constructFunction(f, args, x, next, ret, cont, brk, thrw, prev);
           }
         };
-        next = insertControlForReturnOnNext(n, x, next);
+        next = insertControlForReturnOnNext(n, x, f, next);
         if (n.type === NEW) {
           var a = new sandbox.Object();
           Object.defineProperty(a, "length", {
@@ -4374,12 +4378,11 @@ var Tailspin = new function() {
           }
         };
       }
-      var newPrev = prevDeleteValue(x, "returnedValue", prev);
       x.currentNode = n;
       if (x.control) {
-        x.control(n, x, executeFn, newPrev);
+        x.control(n, x, executeFn, prev);
       } else {
-        executeFn(newPrev);
+        executeFn(prev);
       }
     }
     function thunk(f, x) {

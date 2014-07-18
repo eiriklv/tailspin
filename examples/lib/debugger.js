@@ -181,6 +181,15 @@ Debugger.prototype = {
         this.highlightedLine = n;
         if (this.highlightedLine >= 0) {
             this.source.addLineClass(this.highlightedLine, 'background', 'current-line');
+            
+            var scrollInfo = this.source.getScrollInfo();
+            var topLine = this.source.lineAtHeight(scrollInfo.top, "local");
+            var bottomLine = this.source.lineAtHeight(scrollInfo.top+scrollInfo.clientHeight, "local")
+            // Scroll if line outside view area.
+            if (topLine >= this.highlightedLine || bottomLine <= this.highlightedLine) {
+                this.source.scrollIntoView({line:this.highlightedLine, ch:0},
+                    (scrollInfo.clientHeight-this.source.defaultTextHeight())/2);
+            }
         }
     },
     

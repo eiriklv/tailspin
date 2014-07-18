@@ -16,14 +16,19 @@ function Debugger(source, supportCode) {
     this.stepIntoButton = document.getElementById("step-into-button");
     
     this.speedSlider = document.getElementById("speed-slider");
+    this.lastSliderUpdateDate = 0;
     
     this.timeSlider = document.getElementById("time-slider");
     if (this.timeSlider) {
+        var self = this;
         var jump = function(e) {
-            this.jumpToStep(e.target.valueAsNumber);
-        }.bind(this);
+            self.jumpToStep(e.target.valueAsNumber);
+        };
         this.timeSlider.oninput = jump;
         this.timeSlider.onchange = jump;
+        this.timeSlider.onmousedown = function() {
+            self.lastSliderUpdateDate = new Date();
+        };
     }
     
     this.reset();
@@ -468,6 +473,12 @@ Debugger.prototype = {
                 duration = this.animationDelay()*10;
                 if (duration < 0) duration = 0;
                 if (duration > 100) duration = 100;
+            }
+            else {
+                var date = new Date();
+                //var ease = date-lastUpdateDate > 50? "cubic-in-out" : "linear";
+                var duration = Math.min(date-this.lastSliderUpdateDate, 100);
+                this.lastSliderUpdateDate = date;
             }
             
             // Get a potentially updated prev continuation.

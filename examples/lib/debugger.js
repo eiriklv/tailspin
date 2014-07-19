@@ -19,6 +19,7 @@ function Debugger(source, supportCode) {
     this.lastSliderUpdateDate = 0;
     
     this.timeSlider = document.getElementById("time-slider");
+    this.timeIcon = document.getElementById("time-icon");
     if (this.timeSlider) {
         var self = this;
         var jump = function(e) {
@@ -62,12 +63,12 @@ Debugger.prototype = {
         
         if (this.timeSlider) {
             this.timeSlider.min = -1;
+            this.timeSlider.max = -1;
             this.timeSlider.value = -1;
-            this.timeSlider.disabled = true;
-        
+            
             var setSteps = function(n) {
-                this.timeSlider.disabled = false;
                 this.timeSlider.max = n;
+                this.updateButtons();
             }.bind(this);
             
             var x = this.interpreter.createExecutionContext();
@@ -142,11 +143,11 @@ Debugger.prototype = {
         // Reset the time slider.
         this.timeSlider.min = -1;
         this.timeSlider.value = -1;
-        this.timeSlider.disabled = true;
+        this.timeSlider.max = -1;
         
         var setSteps = function(n) {
-            self.timeSlider.disabled = false;
             self.timeSlider.max = n;
+            self.updateButtons();
         };
         
         // Send persistent globals to the web-worker for counting steps.
@@ -198,7 +199,15 @@ Debugger.prototype = {
         var isPaused = (this.state === "paused" || this.state === "stopped");
         
         var hasPrev = typeof this.executePrev === "function";
-        var hasNext = typeof this.executeNext === "function" || this.stepCount === -1;
+        // Can go forward if there is an 'executeNext' continuation or we are right at the beginning
+        // and we are not pre running the source.
+        var hasNext = typeof this.executeNext === "function" || (!this.preRunSource && this.stepCount === -1);
+        
+        // Disable slider if cannot go forward or back.
+        if (this.timeSlider) {
+            this.timeSlider.disabled = (!hasPrev && !hasNext) || this.timeSlider.max < 0;
+            this.timeIcon.className = this.timeSlider.disabled? "disabled" : "";
+        }
         
         if (this.stepBackButton) {
             this.stepBackButton.disabled = !hasPrev || running;

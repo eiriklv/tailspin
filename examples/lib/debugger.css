@@ -151,6 +151,10 @@ body, html {
     padding: 4px;
 }
 
+#timebar img.disabled {
+    opacity: 0.5;
+}
+
 #time-slider {
     width: calc(100% - 30px);
     height: 24px;

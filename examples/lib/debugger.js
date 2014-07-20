@@ -207,6 +207,7 @@ Debugger.prototype = {
         if (this.timeSlider) {
             this.timeSlider.disabled = (!hasPrev && !hasNext) || this.timeSlider.max < 0;
             this.timeIcon.className = this.timeSlider.disabled? "disabled" : "";
+            this.timeSlider.value = this.stepCount;
         }
         
         if (this.stepBackButton) {
